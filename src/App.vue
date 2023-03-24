@@ -18,7 +18,7 @@
   <div
     ref="target"
     :class="[collapse ? 'translate-x-0' : 'translate-x-[calc(100%_+_1rem)]']"
-    class="fixed bg-white right-4 bottom-4 w-30vw transition-all shadow-md text-black divide-y divide-gray-300"
+    class="fixed rounded-lg bg-white right-4 bottom-4 w-30vw transition-all shadow-md text-black divide-y divide-gray-300"
   >
     <header
       class="flex px-3 items-center bg-gray-50"
