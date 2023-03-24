@@ -24,7 +24,7 @@
     <header class="flex px-3 items-center" @click="toggleShowTable()">
       <div>
         <div
-          class="i-carbon:chevron-left"
+          class="i-carbon-chevron-left"
           :class="showTable ? '-rotate-90' : 'rotate-90'"
         ></div>
       </div>
@@ -39,7 +39,7 @@
         class="ml-auto hover:bg-#eee rounded p-1"
         @click.stop="toggleCollapse(false)"
       >
-        <div class="i-carbon:close"></div>
+        <div class="i-carbon-close"></div>
       </div>
     </header>
     <section v-if="showTable" class="h-40 overflow-y-auto">

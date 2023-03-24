@@ -44,7 +44,7 @@
                 @click="toggleExpand(i)"
               >
                 <div
-                  class="i-carbon:chevron-right"
+                  class="i-carbon-chevron-right"
                   :class="expanded[i] && 'rotate-90'"
                 ></div>
               </td>

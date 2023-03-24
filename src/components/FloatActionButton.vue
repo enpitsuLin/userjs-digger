@@ -5,7 +5,7 @@
       :class="modelValue ? 'translate-x-[calc(100%_+_1rem)]' : 'translate-x-0'"
     >
       <div class="p-2" @click="$emit('update:modelValue', !modelValue)">
-        <div class="i-carbon:settings w-4 h-4"></div>
+        <div class="i-carbon-settings w-4 h-4"></div>
       </div>
     </div>
   </div>
