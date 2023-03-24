@@ -1,19 +1,27 @@
 import { createApp } from 'vue';
 import './style.css';
 import App from './App.vue';
+import unocss from 'uno.css?raw';
 
-class UserjsDigger extends HTMLElement {
-  constructor() {
-    super();
-    const app = document.createElement('div');
-    const shadow = this.attachShadow({ mode: 'open' });
-    shadow.appendChild(app);
+customElements.define(
+  'userjs-digger',
+  class extends HTMLElement {
+    constructor() {
+      super();
+      const app = document.createElement('div');
 
-    createApp(App).mount(app);
+      const style = document.createElement('style');
+      style.innerHTML = `${unocss}`;
+
+      const shadow = this.attachShadow({ mode: 'open' });
+
+      shadow.appendChild(style);
+      shadow.appendChild(app);
+
+      createApp(App).mount(app);
+    }
   }
-}
-
-customElements.define('userjs-digger', UserjsDigger);
+);
 
 const userDigger = document.createElement('userjs-digger');
 document.body.append(userDigger);
