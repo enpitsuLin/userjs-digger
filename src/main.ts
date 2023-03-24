@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import unocss from 'uno.css?raw';
+import reset from '@unocss/reset/tailwind-compat.css?raw';
 
 customElements.define(
   'userjs-digger',
@@ -10,7 +11,7 @@ customElements.define(
       const app = document.createElement('div');
 
       const style = document.createElement('style');
-      style.innerHTML = `${unocss}`;
+      style.innerHTML = `${reset}${unocss}`;
 
       const shadow = this.attachShadow({ mode: 'open' });
 

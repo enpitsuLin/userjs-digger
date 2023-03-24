@@ -21,10 +21,7 @@
     :class="[collapse ? 'translate-x-0' : 'translate-x-[calc(100%_+_1rem)]']"
     class="fixed rounded-lg bg-white right-4 bottom-4 w-30vw transition-all shadow-md text-black divide-y divide-gray-300"
   >
-    <header
-      class="flex px-3 items-center bg-gray-50"
-      @click="toggleShowTable()"
-    >
+    <header class="flex px-3 items-center" @click="toggleShowTable()">
       <div>
         <div
           class="i-carbon:chevron-left"
@@ -33,7 +30,7 @@
       </div>
       <span class="p-2 text-sm">
         Found
-        <span class="rounded-full px-1 py-0.5 bg-indigo-500 text-white">{{
+        <span class="rounded-full px-2 py-0.25 text-xs bg-indigo-500 text-white">{{
           data?.length
         }}</span>
         user scripts for the page
@@ -45,8 +42,8 @@
         <div class="i-carbon:close"></div>
       </div>
     </header>
-    <section v-if="showTable" class="p-2 h-40 overflow-y-auto">
-      <div v-for="item in data">{{ item.name }}</div>
+    <section v-if="showTable" class="h-40 overflow-y-auto">
+      <DataTable :data="data ?? []" />
     </section>
   </div>
 </template>

@@ -1,12 +1,12 @@
 import psl from 'psl';
 
-type GreasyforkScriptUser = {
+export type GreasyforkScriptUser = {
   id: number;
   name: string;
   url: string;
 };
 
-type GreasyforkScript = {
+export type GreasyforkScript = {
   bad_ratings: number;
   code_updated_at: string;
   code_url: string;
@@ -31,7 +31,7 @@ type GreasyforkScript = {
   version: string;
 };
 
-export function useGreasyfork(site = 'https://greasyfork.org/') {
+export function useGreasyfork(site = 'https://greasyfork.org') {
   const host = psl.get(window.location.hostname);
   const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
   return useFetch(apiEndpoint).json<GreasyforkScript[]>();
