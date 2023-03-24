@@ -27,7 +27,12 @@ export default defineConfig(async ({ command }) => {
         userscript: {
           icon: 'https://vitejs.dev/logo.svg',
           namespace: 'userjs-digger',
-          include: ['*']
+          include: ['*'],
+          require: [
+            'https://greasyfork.org/scripts/421384-gm-fetch/code/GM_fetch.js?version=1134973'
+          ],
+          grant: ['GM_xmlhttpRequest'],
+          connect: ['greasyfork.org']
         },
         build: {
           externalGlobals: [
@@ -45,7 +50,8 @@ export default defineConfig(async ({ command }) => {
               cdn
                 .jsdelivr('VueUse')
                 .concat('https://cdn.jsdelivr.net/npm/@vueuse/shared@beta')
-            ]
+            ],
+            ['psl', cdn.bootcdn('psl', 'psl.min.js')]
           ]
         }
       })

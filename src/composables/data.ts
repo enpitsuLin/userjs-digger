@@ -34,5 +34,7 @@ export type GreasyforkScript = {
 export function useGreasyfork(site = 'https://greasyfork.org') {
   const host = psl.get(window.location.hostname);
   const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
-  return useFetch(apiEndpoint).json<GreasyforkScript[]>();
+  return useFetch(apiEndpoint, { fetch: GM_fetch }).json<GreasyforkScript[]>();
 }
+
+declare const GM_fetch: typeof fetch;
