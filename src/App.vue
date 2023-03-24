@@ -1,5 +1,6 @@
 <script setup lang="ts"></script>
 
-<template>
+<template> 
   <div class="p-2">test</div>
 </template>
+<!-- @unocss-placeholder -->
