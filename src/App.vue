@@ -1,6 +1,4 @@
 <script setup lang="ts">
-  import FloatActionButton from './components/FloatActionButton.vue';
-
   const target = ref(null);
 
   const [collapse, toggleCollapse] = useToggle(false);
