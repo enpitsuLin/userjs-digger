@@ -1,7 +1,8 @@
 import { defineConfig, presetUno, presetIcons } from 'unocss';
+import presetRemToPx from '@unocss/preset-rem-to-px';
 
 export default defineConfig({
-  presets: [presetUno(), presetIcons()],
+  presets: [presetUno(), presetIcons(), presetRemToPx()],
   preflights: [
     {
       getCSS: () => {

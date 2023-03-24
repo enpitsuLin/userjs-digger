@@ -4,6 +4,7 @@ specifiers:
   '@iconify-json/carbon': ^1.1.16
   '@types/node': ^18.15.7
   '@types/psl': ^1.1.0
+  '@unocss/preset-rem-to-px': ^0.50.6
   '@vitejs/plugin-vue': ^4.1.0
   '@vue/runtime-core': ^3.2.47
   '@vueuse/core': 10.0.0-beta.1
@@ -30,6 +31,7 @@ devDependencies:
   '@iconify-json/carbon': 1.1.16
   '@types/node': 18.15.7
   '@types/psl': 1.1.0
+  '@unocss/preset-rem-to-px': 0.50.6
   '@vitejs/plugin-vue': 4.1.0_vite@4.2.1+vue@3.2.47
   '@vue/runtime-core': 3.2.47
   npm-run-all: 4.1.5
@@ -468,6 +470,12 @@ packages:
 
   /@unocss/preset-mini/0.50.6:
     resolution: {integrity: sha512-Ejgib688uvzCVgT/DHAOyXxKcM8vX55mxh8m3GAEx1H1pxg0IBfJO4QCKa3uAnasxj27XescBbvqv04dWi+jEQ==}
+    dependencies:
+      '@unocss/core': 0.50.6
+    dev: true
+
+  /@unocss/preset-rem-to-px/0.50.6:
+    resolution: {integrity: sha512-4pNuRd0gowr7x7GTZghA3dGwOYL79j9+PdCkU792z9OyXmGxdVA0A+KPJYXsFFCdRfJpK9/qJe482XNPbj7N4w==}
     dependencies:
       '@unocss/core': 0.50.6
     dev: true
