@@ -14,7 +14,8 @@ export default defineConfig(async ({ command }) => {
     plugins: [
       AutoImport({
         imports: [util.unimportPreset, 'vue', '@vueuse/core'],
-        dts: 'src/auto-import.d.ts'
+        dts: 'src/auto-import.d.ts',
+        dirs: ['./src/composables/**']
       }),
       Component({ dts: 'src/components.d.ts' }),
 
