@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import monkey, { cdn } from 'vite-plugin-monkey';
+import AutoImport from 'unplugin-auto-import/vite';
+import monkey, { cdn, util } from 'vite-plugin-monkey';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    AutoImport({
+      imports: [util.unimportPreset, 'vue', '@vueuse/core'],
+      dts: 'src/auto-import.d.ts'
+    }),
+
     vue(),
     monkey({
       entry: 'src/main.ts',
