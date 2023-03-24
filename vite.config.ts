@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import monkey, { cdn, util } from 'vite-plugin-monkey';
+import Unocss from 'unocss/vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -10,6 +11,8 @@ export default defineConfig({
       imports: [util.unimportPreset, 'vue', '@vueuse/core'],
       dts: 'src/auto-import.d.ts'
     }),
+
+    Unocss(),
 
     vue(),
     monkey({

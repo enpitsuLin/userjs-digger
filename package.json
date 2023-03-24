@@ -4,12 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm-run-all -p dev:script dev:style",
-    "build": "vue-tsc --noEmit && npm run build:style && vite build",
-    "preview": "vite preview",
-    "dev:script": "vite",
-    "dev:style": "unocss \"src/**/*.vue\" -o ./src/uno.css -w",
-    "build:style": "unocss \"src/**/*.vue\" -o ./src/uno.css"
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@vueuse/core": "10.0.0-beta.1",
@@ -18,7 +15,6 @@
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.1.16",
-    "@unocss/cli": "^0.50.6",
     "@vitejs/plugin-vue": "^4.1.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.0.2",

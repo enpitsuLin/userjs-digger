@@ -1,6 +1,6 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-import unocss from './uno.css?raw';
+import unocss from 'uno.css?raw';
 
 customElements.define(
   'userjs-digger',
