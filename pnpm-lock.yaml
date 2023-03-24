@@ -4,7 +4,7 @@ specifiers:
   '@iconify-json/carbon': ^1.1.16
   '@unocss/cli': ^0.50.6
   '@vitejs/plugin-vue': ^4.1.0
-  '@vueuse/core': ^9.13.0
+  '@vueuse/core': 10.0.0-beta.1
   npm-run-all: ^4.1.5
   typescript: ^5.0.2
   unocss: ^0.50.6
@@ -15,8 +15,8 @@ specifiers:
   vue-tsc: ^1.2.0
 
 dependencies:
-  '@vueuse/core': 9.13.0_vue@3.2.47
-  unplugin-auto-import: 0.15.2_@vueuse+core@9.13.0
+  '@vueuse/core': 10.0.0-beta.1_vue@3.2.47
+  unplugin-auto-import: 0.15.2_@vueuse+core@10.0.0-beta.1
   vue: 3.2.47
 
 devDependencies:
@@ -665,24 +665,24 @@ packages:
   /@vue/shared/3.2.47:
     resolution: {integrity: sha512-BHGyyGN3Q97EZx0taMQ+OLNuZcW3d37ZEVmEAyeoA9ERdGvm9Irc/0Fua8SNyOtV1w6BS4q25wbMzJujO9HIfQ==}
 
-  /@vueuse/core/9.13.0_vue@3.2.47:
-    resolution: {integrity: sha512-pujnclbeHWxxPRqXWmdkKV5OX4Wk4YeK7wusHqRwU0Q7EFusHoqNA/aPhB6KCh9hEqJkLAJo7bb0Lh9b+OIVzw==}
+  /@vueuse/core/10.0.0-beta.1_vue@3.2.47:
+    resolution: {integrity: sha512-egIFZ+3d9491tba2fhCeDR+hZKMq04sJs93A9uA+aWE3sX3LqUQ2LXuBjDtMQ6lUM1YIbqn0l0m3JGLCjGxMew==}
     dependencies:
       '@types/web-bluetooth': 0.0.16
-      '@vueuse/metadata': 9.13.0
-      '@vueuse/shared': 9.13.0_vue@3.2.47
+      '@vueuse/metadata': 10.0.0-beta.1
+      '@vueuse/shared': 10.0.0-beta.1_vue@3.2.47
       vue-demi: 0.13.11_vue@3.2.47
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
     dev: false
 
-  /@vueuse/metadata/9.13.0:
-    resolution: {integrity: sha512-gdU7TKNAUVlXXLbaF+ZCfte8BjRJQWPCa2J55+7/h+yDtzw3vOoGQDRXzI6pyKyo6bXFT5/QoPE4hAknExjRLQ==}
+  /@vueuse/metadata/10.0.0-beta.1:
+    resolution: {integrity: sha512-T0AjazznLZq8LaV2SWqeQTzC7h7UI4l6kOnMGa+wqE347IvovzfpncMEfWWTqWhxYtRLEzeIO1hcitoH7HbG/A==}
     dev: false
 
-  /@vueuse/shared/9.13.0_vue@3.2.47:
-    resolution: {integrity: sha512-UrnhU+Cnufu4S6JLCPZnkWh0WwZGUp72ktOF2DFptMlOs3TOdVv8xJN53zhHGARmVOsz5KqOls09+J1NR6sBKw==}
+  /@vueuse/shared/10.0.0-beta.1_vue@3.2.47:
+    resolution: {integrity: sha512-hsp8yaZ49TgjWZVKQ2prmMinyYpeVNgI55knPoRE4pGbqFrr07SOwz/k+uSfPYLd0Tko2WjniD4S6RRFB3pHfA==}
     dependencies:
       vue-demi: 0.13.11_vue@3.2.47
     transitivePeerDependencies:
@@ -1995,7 +1995,7 @@ packages:
       - vite
     dev: true
 
-  /unplugin-auto-import/0.15.2_@vueuse+core@9.13.0:
+  /unplugin-auto-import/0.15.2_@vueuse+core@10.0.0-beta.1:
     resolution: {integrity: sha512-Wivfu+xccgvEZG8QtZcIvt6napfX9wyOFqM//7FHOtev8+k+dp3ykiqsEl6TODgHmqTTBeQX4Ah1JvRgUNjlkg==}
     engines: {node: '>=14'}
     peerDependencies:
@@ -2009,7 +2009,7 @@ packages:
     dependencies:
       '@antfu/utils': 0.7.2
       '@rollup/pluginutils': 5.0.2
-      '@vueuse/core': 9.13.0_vue@3.2.47
+      '@vueuse/core': 10.0.0-beta.1_vue@3.2.47
       local-pkg: 0.4.3
       magic-string: 0.30.0
       minimatch: 7.4.3

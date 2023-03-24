@@ -20,9 +20,23 @@ export default defineConfig({
         include: ['*']
       },
       build: {
-        externalGlobals: {
-          vue: cdn.jsdelivr('Vue', 'dist/vue.global.prod.js')
-        }
+        externalGlobals: [
+          [
+            'vue',
+            cdn.jsdelivr('Vue', 'dist/vue.global.prod.js').concat(
+              await util.fn2dataUrl(() => {
+                // @ts-ignore
+                window.Vue = Vue; // work with element-plus
+              })
+            )
+          ],
+          [
+            '@vueuse/core',
+            cdn
+              .jsdelivr('VueUse')
+              .concat('https://cdn.jsdelivr.net/npm/@vueuse/shared@beta')
+          ]
+        ]
       }
     })
   ]
