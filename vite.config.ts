@@ -26,7 +26,6 @@ export default defineConfig(async ({ command }) => {
       monkey({
         entry: 'src/main.ts',
         userscript: {
-          icon: 'https://vitejs.dev/logo.svg',
           namespace: 'userjs-digger',
           name: 'Userjs digger',
           version: pkg.version,
