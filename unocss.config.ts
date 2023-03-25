@@ -11,7 +11,7 @@ export default defineConfig({
   preflights: [
     {
       getCSS: () => {
-        return '[data-v-app]{font-size:16px}:host{z-index:9999;position:relative}';
+        return '[data-v-app]{font-size:16px}:host{z-index:999999;position:relative}';
       }
     }
   ],
