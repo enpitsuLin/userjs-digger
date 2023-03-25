@@ -16,7 +16,7 @@ export function UnocssBuildPlugin(): Plugin[] {
       },
       async load(id) {
         if (id === '/__unocss_raw') {
-          const outFile = resolve(tmpdir(), `unocss_${+Date()}.css`);
+          const outFile = resolve(tmpdir(), `unocss_${+new Date()}.css`);
           await build({
             outFile,
             cwd: process.cwd(),
