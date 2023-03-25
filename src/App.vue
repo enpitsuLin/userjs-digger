@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import psl from 'psl';
+
   const target = ref(null);
 
   const [collapse, toggleCollapse] = useToggle(false);
@@ -12,6 +14,10 @@
 
   const [showTable, toggleShowTable] = useToggle(false);
   const { isFetching, error, data } = useGreasyfork();
+
+  const pagePsl = computed(() => {
+    return psl.get(window.location.hostname);
+  });
 </script>
 
 <template>
@@ -21,7 +27,10 @@
     :class="[collapse ? 'translate-x-0' : 'translate-x-[calc(100%_+_1rem)]']"
     class="fixed rounded-lg bg-$ud-bg text-$ud-text right-4 bottom-4 w-35vw transition-all shadow-md divide-y divide-$ud-border-secondary"
   >
-    <header class="w-full flex px-3 items-center" @click="toggleShowTable()">
+    <header
+      class="w-full flex px-3 items-center select-none cursor-pointer"
+      @click="toggleShowTable()"
+    >
       <div>
         <div
           class="i-carbon-chevron-left"
@@ -34,7 +43,7 @@
           class="rounded-full px-2 py-0.25 text-xs bg-indigo-500 text-white"
           >{{ data?.length }}</span
         >
-        user scripts for the page
+        user scripts for the {{ pagePsl }}
       </span>
       <div
         class="ml-auto hover:bg-$ud-bg-hover rounded p-1"
