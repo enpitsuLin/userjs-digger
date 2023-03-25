@@ -41,7 +41,8 @@ export default defineConfig(async ({ command }) => {
         build: {
           externalGlobals: [
             ['vue', cdn.jsdelivr('Vue', 'dist/vue.global.prod.js')],
-            ['psl', cdn.bootcdn('psl', 'psl.min.js')]
+            ['psl', cdn.bootcdn('psl', 'psl.min.js')],
+            ['vue-i18n', cdn.unpkg('VueI18n')]
           ]
         }
       })
