@@ -49,12 +49,12 @@
                 {{ item.name }}
               </td>
               <td
-                class="whitespace-nowrap text-ellipsis break-all overflow-hidden px-3 py-2 text-xs text-$un-text-secondary"
+                class="whitespace-nowrap text-ellipsis break-all overflow-hidden px-3 py-2 text-xs text-$ud-text-secondary"
               >
                 {{ item.daily_installs }}
               </td>
               <td
-                class="whitespace-nowrap text-ellipsis break-all overflow-hidden px-3 py-2 text-xs text-$un-text-secondary"
+                class="whitespace-nowrap text-ellipsis break-all overflow-hidden px-3 py-2 text-xs text-$ud-text-secondary"
               >
                 {{ formatTimeAgo(new Date(item.code_updated_at)) }}
               </td>
@@ -81,7 +81,9 @@
       </table>
 
       <template v-if="data.length === 0">
-        <div class="p-3 text-center text-sm">There has no Userjs for this site</div>
+        <div class="p-3 text-center text-sm">
+          There has no Userjs for this site
+        </div>
       </template>
     </div>
   </div>
