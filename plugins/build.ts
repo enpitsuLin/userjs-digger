@@ -20,7 +20,8 @@ export function UnocssBuildPlugin(): Plugin[] {
           await build({
             outFile,
             cwd: process.cwd(),
-            patterns: ['./src/**/*.vue']
+            config: resolve(__dirname, '../unocss.config.ts'),
+            patterns: ['./src/**/*.vue', './src/**/*.css']
           });
           const css = (await readFile(outFile)).toString().split('\n').join('');
 

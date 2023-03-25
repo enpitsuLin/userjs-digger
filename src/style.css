@@ -1,22 +1,22 @@
 userjs-digger {
-  --ud-text: theme('colors.neutral.800');
-  --un-text-secondary: theme('colors.neutral.900');
-  --ud-bg: theme('colors.neutral.100');
-  --ud-bg-secondary: theme('colors.neutral.200');
-  --ud-bg-hover: theme('colors.neutral.300');
+  --ud-text: #262626;
+  --un-text-secondary: #171717;
+  --ud-bg: #f5f5f5;
+  --ud-bg-secondary: #e5e5e5;
+  --ud-bg-hover: #d4d4d4;
 
-  --ud-border: theme('colors.gray.200');
-  --ud-border-secondary: theme('colors.gray.300');
+  --ud-border: #e5e7eb;
+  --ud-border-secondary: #d1d5db;
 }
 .dark userjs-digger,
 [data-color-mode='dark'] userjs-digger,
 [data-theme='dark'] userjs-digger {
-  --ud-text: theme('colors.neutral.100');
-  --un-text-secondary: theme('colors.neutral.50');
-  --ud-bg: theme('colors.neutral.800');
-  --ud-bg-secondary: theme('colors.neutral.600');
-  --ud-bg-hover: theme('colors.neutral.500');
+  --ud-text: #f5f5f5;
+  --un-text-secondary: #fafafa;
+  --ud-bg: #262626;
+  --ud-bg-secondary: #525252;
+  --ud-bg-hover: #737373;
 
-  --ud-border: theme('colors.gray.700');
-  --ud-border-secondary: theme('colors.gray.600');
+  --ud-border: #374151;
+  --ud-border-secondary: #4b5563;
 }
