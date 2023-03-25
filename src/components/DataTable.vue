@@ -100,9 +100,12 @@
 
   const props = defineProps<{ data: GreasyforkScript[] }>();
   const expanded = ref<boolean[]>([]);
-  watchArray(props.data, () => {
-    expanded.value = Array.from({ length: props.data.length }, () => false);
-  });
+  watchArray(
+    () => props.data,
+    () => {
+      expanded.value = Array.from({ length: props.data.length }, () => false);
+    }
+  );
   const toggleExpand = (i: number) => {
     expanded.value[i] = !expanded.value[i];
   };
