@@ -35,7 +35,8 @@ export default defineConfig(async ({ command }) => {
           grant: ['GM_xmlhttpRequest'],
           connect: ['greasyfork.org'],
           noframes: true,
-          license: 'MIT'
+          license: 'MIT',
+          icon: 'https://user-images.githubusercontent.com/29378026/227717136-4c9dfba4-0f90-41a2-905a-4cf19e751b5c.png'
         },
         build: {
           externalGlobals: [
