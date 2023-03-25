@@ -5,6 +5,7 @@ import Component from 'unplugin-vue-components/vite';
 import monkey, { cdn, util } from 'vite-plugin-monkey';
 import Unocss from 'unocss/vite';
 import { UnocssBuildPlugin } from './plugins/build';
+import pkg from './package.json';
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command }) => {
@@ -27,9 +28,14 @@ export default defineConfig(async ({ command }) => {
         userscript: {
           icon: 'https://vitejs.dev/logo.svg',
           namespace: 'userjs-digger',
+          name: 'Userjs digger',
+          version: pkg.version,
+          description: pkg.description,
+          author: pkg.author,
           include: ['*'],
           grant: ['GM_xmlhttpRequest'],
-          connect: ['greasyfork.org']
+          connect: ['greasyfork.org'],
+          noframes: true
         },
         build: {
           externalGlobals: [

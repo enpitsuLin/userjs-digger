@@ -1,7 +1,9 @@
 {
   "name": "userjs-digger",
+  "description": "Show all userjs available in current site",
+  "author": "enpitsulin <enpitsulin@gmail.com>",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
