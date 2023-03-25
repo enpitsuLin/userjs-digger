@@ -1,8 +1,8 @@
 userjs-digger {
   --ud-text: #262626;
-  --ud-text-secondary: #313131;
+  --ud-text-secondary: #31313188;
   --ud-bg: #f5f5f5;
-  --ud-bg-secondary: #e5e5e5;
+  --ud-bg-secondary: #d0d0d0;
   --ud-bg-hover: #d4d4d4;
 
   --ud-border: #e5e7eb;
@@ -12,7 +12,7 @@ userjs-digger {
 [data-color-mode='dark'] userjs-digger,
 [data-theme='dark'] userjs-digger {
   --ud-text: #f5f5f5;
-  --ud-text-secondary: #d5d5d5;
+  --ud-text-secondary: #d5d5d588;
   --ud-bg: #262626;
   --ud-bg-secondary: #525252;
   --ud-bg-hover: #737373;
