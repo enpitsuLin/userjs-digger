@@ -11,5 +11,10 @@
     "total-installs": "总安装量",
     "description": "脚本描述",
     "empty": "这个网站没有适用的脚本"
-  }
+  },
+  "settings": "设置",
+  "language": "语言",
+  "language-desc": "切换用户语言设置",
+  "enable": "本页启用",
+  "enable-desc": "控制本页面是否启用功能(会话)"
 }
