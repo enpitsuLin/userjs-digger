@@ -28,9 +28,6 @@ export default defineConfig(async ({ command }) => {
           icon: 'https://vitejs.dev/logo.svg',
           namespace: 'userjs-digger',
           include: ['*'],
-          require: [
-            'https://greasyfork.org/scripts/421384-gm-fetch/code/GM_fetch.js?version=1134973'
-          ],
           grant: ['GM_xmlhttpRequest'],
           connect: ['greasyfork.org']
         },
