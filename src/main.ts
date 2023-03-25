@@ -8,6 +8,7 @@ import cn from './locales/cn.json';
 import en from './locales/en.json';
 
 const i18n = createI18n<typeof en, 'en' | 'cn'>({
+  legacy: false,
   locale: 'en',
   fallbackLocale: 'en',
   messages: { cn, en }

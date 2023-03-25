@@ -16,6 +16,15 @@
     <ul class="divide-y divide-$ud-border px-4 py-2">
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
+          <p class="text-sm font-medium">Language</p>
+          <p class="text-sm text-$ud-text-secondary text-xs">
+            Switch user script language
+          </p>
+        </div>
+        <LocaleSelect />
+      </li>
+      <li class="py-2 flex items-center justify-between space-x-4">
+        <div class="flex flex-col w-4/5 overflow-hidden">
           <p class="text-sm font-medium">Enable on this page</p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             To enable this plugin on this page or not (Session)
