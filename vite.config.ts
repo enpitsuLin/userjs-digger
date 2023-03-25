@@ -39,21 +39,7 @@ export default defineConfig(async ({ command }) => {
         },
         build: {
           externalGlobals: [
-            [
-              'vue',
-              cdn.jsdelivr('Vue', 'dist/vue.global.prod.js').concat(
-                await util.fn2dataUrl(() => {
-                  // @ts-ignore
-                  window.Vue = Vue; // work with element-plus
-                })
-              )
-            ],
-            [
-              '@vueuse/core',
-              cdn
-                .jsdelivr('VueUse')
-                .concat('https://cdn.jsdelivr.net/npm/@vueuse/shared@beta')
-            ],
+            ['vue', cdn.jsdelivr('Vue', 'dist/vue.global.prod.js')],
             ['psl', cdn.bootcdn('psl', 'psl.min.js')]
           ]
         }
