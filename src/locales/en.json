@@ -12,5 +12,10 @@
     "authors": "Author(s)",
     "description": "Description",
     "empty": "There has no Userjs for this site"
-  }
+  },
+  "settings": "Settings",
+  "language": "Language",
+  "language-desc": "Switch language",
+  "enable": "Enable on this page",
+  "enable-desc": "To enable this plugin on this page or not (Session)"
 }
