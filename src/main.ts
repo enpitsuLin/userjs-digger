@@ -1,4 +1,5 @@
-import { createApp } from 'vue';
+import './style.css';
+import { createApp, App as VueApp } from 'vue';
 import App from './App.vue';
 import unocss from 'uno.css?raw';
 import reset from '@unocss/reset/tailwind-compat.css?raw';
@@ -6,6 +7,7 @@ import reset from '@unocss/reset/tailwind-compat.css?raw';
 customElements.define(
   'userjs-digger',
   class extends HTMLElement {
+    app: VueApp;
     constructor() {
       super();
       const app = document.createElement('div');
@@ -18,7 +20,9 @@ customElements.define(
       shadow.appendChild(style);
       shadow.appendChild(app);
 
-      createApp(App).mount(app);
+      this.app = createApp(App);
+      this.app.provide('container', app);
+      this.app.mount(app);
     }
   }
 );
