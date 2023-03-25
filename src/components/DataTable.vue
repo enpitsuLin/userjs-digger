@@ -73,7 +73,34 @@
             </tr>
             <tr v-if="expanded[i]">
               <td colspan="5" class="py-2">
-                <div class="m-4">expand content</div>
+                <div class="mx-2">
+                  <dl class="text-xs grid grid-cols-6 gap-y-2">
+                    <dt class="font-semibold">Version</dt>
+                    <dd class="text-$ud-text">{{ item.version }}</dd>
+                    <dt class="font-semibold">Score</dt>
+                    <dd class="text-$ud-text">{{ item.fan_score }}</dd>
+                    <dt class="font-semibold">Total instals</dt>
+                    <dd class="text-$ud-text">
+                      {{ item.total_installs.toLocaleString() }}
+                    </dd>
+                    <dt class="font-semibold">Author(s)</dt>
+                    <dd class="col-span-5 text-$ud-text">
+                      <a
+                        v-for="user in item.users"
+                        :key="user.id"
+                        :href="user.url"
+                        target="_blank"
+                        class="underline underline-2 underline-$ud-bg"
+                      >
+                        {{ user.name }}
+                      </a>
+                    </dd>
+                    <dt class="font-semibold">Description</dt>
+                    <dd class="col-span-5 text-$ud-text">
+                      {{ item.description }}
+                    </dd>
+                  </dl>
+                </div>
               </td>
             </tr>
           </template>
