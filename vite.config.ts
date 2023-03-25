@@ -34,7 +34,8 @@ export default defineConfig(async ({ command }) => {
           include: ['*'],
           grant: ['GM_xmlhttpRequest'],
           connect: ['greasyfork.org'],
-          noframes: true
+          noframes: true,
+          license: 'MIT'
         },
         build: {
           externalGlobals: [
