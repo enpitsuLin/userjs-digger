@@ -79,6 +79,10 @@
           </template>
         </tbody>
       </table>
+
+      <template v-if="data.length === 0">
+        <div class="p-3 text-center text-sm">There has no Userjs for this site</div>
+      </template>
     </div>
   </div>
 </template>
