@@ -1,4 +1,9 @@
-import { defineConfig, presetUno, presetIcons } from 'unocss';
+import {
+  defineConfig,
+  presetUno,
+  presetIcons,
+  transformerDirectives
+} from 'unocss';
 import presetRemToPx from '@unocss/preset-rem-to-px';
 
 export default defineConfig({
@@ -9,5 +14,6 @@ export default defineConfig({
         return '[data-v-app]{font-size:16px}:host{z-index:9999;position:relative}';
       }
     }
-  ]
+  ],
+  transformers: [transformerDirectives()]
 });
