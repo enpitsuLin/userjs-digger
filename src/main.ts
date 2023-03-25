@@ -1,8 +1,14 @@
 import './style.css';
 import { createApp, App as VueApp } from 'vue';
+import { createI18n } from 'vue-i18n';
 import App from './App.vue';
 import unocss from 'uno.css?raw';
 import reset from '@unocss/reset/tailwind-compat.css?raw';
+
+const i18n = createI18n({
+  locale: 'en',
+  fallbackLocale: 'en'
+});
 
 customElements.define(
   'userjs-digger',
@@ -21,6 +27,7 @@ customElements.define(
       shadow.appendChild(app);
 
       this.app = createApp(App);
+      this.app.use(i18n);
       this.app.provide('container', app);
       this.app.mount(app);
     }
