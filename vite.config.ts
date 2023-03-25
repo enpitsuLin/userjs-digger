@@ -44,6 +44,7 @@ export default defineConfig(async ({ command }) => {
           ]
         }
       })
-    ]
+    ],
+    build: { minify: 'esbuild' }
   };
 });

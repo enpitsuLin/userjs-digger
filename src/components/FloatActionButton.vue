@@ -2,7 +2,7 @@
   <div
     ref="fab"
     class="fixed right-3 bottom-4 transition-transform ease-out"
-    :class="isOutside ? 'translate-x-full' : 'translate-x-0'"
+    :class="isOutside ? 'translate-x-4/5' : 'translate-x-0'"
   >
     <div
       class="bg-$ud-bg text-$ud-text transition-all shadow-md overflow-hidden rounded-md cursor-pointer flex"
