@@ -1,1 +1,16 @@
-{}
+{
+  "tip": "Found {count} user scripts for the {host}",
+  "table": {
+    "toggle-expand": "Toggle expand",
+    "title": "Title",
+    "daily": "Daily",
+    "update": "Update",
+    "install": "Install",
+    "version": "Version",
+    "score": "Score",
+    "total-installs": "Total installs",
+    "authors": "Author(s)",
+    "description": "Description",
+    "empty": "There has no Userjs for this site"
+  }
+}

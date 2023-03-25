@@ -43,12 +43,16 @@
           ></div>
         </div>
         <span class="p-2 text-sm">
-          Found
-          <span
-            class="rounded-full px-2 py-0.25 text-xs bg-indigo-500 text-white"
-            >{{ data?.length }}</span
-          >
-          user scripts for the {{ pagePsl }}
+          <i18n-t keypath="tip">
+            <template #count>
+              <span
+                class="rounded-full px-2 py-0.25 text-xs bg-indigo-500 text-white"
+              >
+                {{ data?.length }}
+              </span>
+            </template>
+            <template #host>{{ pagePsl }}</template>
+          </i18n-t>
         </span>
         <div
           class="ml-auto hover:bg-$ud-bg-hover rounded p-1"
