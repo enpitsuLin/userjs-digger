@@ -24,7 +24,7 @@ export function UnocssBuildPlugin(): Plugin[] {
           });
           const css = (await readFile(outFile)).toString().split('\n').join('');
 
-          return `export default \`${css}\``;
+          return { code: `export default ${JSON.stringify(css)}` };
         }
       }
     }
