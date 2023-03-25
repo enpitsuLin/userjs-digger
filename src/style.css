@@ -1,0 +1,22 @@
+userjs-digger {
+  --ud-text: theme('colors.neutral.800');
+  --un-text-secondary: theme('colors.neutral.900');
+  --ud-bg: theme('colors.neutral.100');
+  --ud-bg-secondary: theme('colors.neutral.200');
+  --ud-bg-hover: theme('colors.neutral.300');
+
+  --ud-border: theme('colors.gray.200');
+  --ud-border-secondary: theme('colors.gray.300');
+}
+.dark userjs-digger,
+[data-color-mode='dark'] userjs-digger,
+[data-theme='dark'] userjs-digger {
+  --ud-text: theme('colors.neutral.100');
+  --un-text-secondary: theme('colors.neutral.50');
+  --ud-bg: theme('colors.neutral.800');
+  --ud-bg-secondary: theme('colors.neutral.600');
+  --ud-bg-hover: theme('colors.neutral.500');
+
+  --ud-border: theme('colors.gray.700');
+  --ud-border-secondary: theme('colors.gray.600');
+}
