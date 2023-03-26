@@ -31,10 +31,41 @@ export type GreasyforkScript = {
   version: string;
 };
 
-export function useGreasyfork(site = 'https://greasyfork.org') {
+export function useGreasyfork(
+  site = 'https://greasyfork.org',
+  immediate = true
+) {
   const host = psl.get(window.location.hostname);
   const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
-  return useFetch(apiEndpoint, { fetch: unsafeWindow.fetch }).json<
+  return useFetch(apiEndpoint, { fetch: unsafeWindow.fetch, immediate }).json<
     GreasyforkScript[]
   >();
+}
+
+export function useDataList() {
+  const settings = useUserjsDiggerSettings();
+  const { data: greasyfork } = useGreasyfork();
+  const { data: sleazyfork, execute } = useGreasyfork(
+    'https://sleazyfork.org',
+    false
+  );
+  watch(
+    () => settings.value.nsfw,
+    (val) => {
+      if (val) {
+        if (!sleazyfork.value) execute();
+      }
+    },
+    { immediate: true }
+  );
+
+  const data = computed(() => {
+    return (
+      greasyfork.value?.concat(
+        settings.value.nsfw ? sleazyfork.value ?? [] : []
+      ) ?? []
+    );
+  });
+
+  return data;
 }

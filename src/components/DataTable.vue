@@ -156,15 +156,18 @@
     daily: '' as '' | 'desc' | 'asc'
   });
 
-  const sortedData = useSorted(props.data, (a, b) => {
-    if (sort.updated !== '') {
-      if (sort.updated === 'asc')
-        return +new Date(a.code_updated_at) - +new Date(b.code_updated_at);
-      return +new Date(b.code_updated_at) - +new Date(a.code_updated_at);
+  const sortedData = useSorted(
+    computed(() => props.data),
+    (a, b) => {
+      if (sort.updated !== '') {
+        if (sort.updated === 'asc')
+          return +new Date(a.code_updated_at) - +new Date(b.code_updated_at);
+        return +new Date(b.code_updated_at) - +new Date(a.code_updated_at);
+      }
+      if (sort.daily === 'asc') return a.daily_installs - b.daily_installs;
+      return b.daily_installs - a.daily_installs;
     }
-    if (sort.daily === 'asc') return a.daily_installs - b.daily_installs;
-    return b.daily_installs - a.daily_installs;
-  });
+  );
 
   const sortIcon = (sort: '' | 'desc' | 'asc') => {
     if (sort === '') return 'i-carbon-caret-sort';

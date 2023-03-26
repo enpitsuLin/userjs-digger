@@ -19,7 +19,7 @@
   );
 
   const [showTable, toggleShowTable] = useToggle(false);
-  const { isFetching, error, data } = useGreasyfork();
+  const data = useDataList();
 
   const pagePsl = computed(() => {
     return psl.get(window.location.hostname);
