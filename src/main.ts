@@ -4,16 +4,19 @@ import { createI18n } from 'vue-i18n';
 import App from './App.vue';
 import unocss from 'uno.css?raw';
 import reset from '@unocss/reset/tailwind-compat.css?raw';
-import cn from './locales/cn.json';
+import zh from './locales/zh.json';
 import en from './locales/en.json';
 
-const storeLocale = GM_getValue<string>('ud_locale', 'en');
+const storeLocale = GM_getValue<string>(
+  'ud_locale',
+  navigator.language ?? 'en'
+);
 
-const i18n = createI18n<typeof en, 'en' | 'cn'>({
+const i18n = createI18n<typeof en, 'en' | 'zh'>({
   legacy: false,
   locale: storeLocale,
   fallbackLocale: 'en',
-  messages: { cn, en }
+  messages: { zh, en }
 });
 
 customElements.define(
