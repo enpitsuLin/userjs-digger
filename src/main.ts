@@ -16,29 +16,40 @@ const i18n = createI18n<typeof en, 'en' | 'zh'>({
   messages: { zh, en }
 });
 
-customElements.define(
-  'userjs-digger',
-  class extends HTMLElement {
-    app: VueApp;
-    constructor() {
-      super();
-      const app = document.createElement('div');
+if (!HTMLElement.prototype.attachShadow) {
+  console.log("shadow-dom doesn't support in current website, load polyfill");
+  useScriptTag('https://unpkg.com/attachshadow@0.3.0/min.js', () => {
+    initUserjsDigger(Element.prototype.attachShadow);
+  });
+} else {
+  initUserjsDigger();
+}
 
-      const style = document.createElement('style');
-      style.innerHTML = `${reset}${unocss}`;
+function initUserjsDigger(attachShadow = HTMLElement.prototype.attachShadow) {
+  customElements.define(
+    'userjs-digger',
+    class extends HTMLElement {
+      app: VueApp;
+      constructor() {
+        super();
+        const app = document.createElement('div');
 
-      const shadow = this.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.innerHTML = `${reset}${unocss}`;
 
-      shadow.appendChild(style);
-      shadow.appendChild(app);
+        const shadow = attachShadow.call(this, { mode: 'open' });
 
-      this.app = createApp(App);
-      this.app.use(i18n);
-      this.app.provide('container', app);
-      this.app.mount(app);
+        shadow.appendChild(style);
+        shadow.appendChild(app);
+
+        this.app = createApp(App);
+        this.app.use(i18n);
+        this.app.provide('container', app);
+        this.app.mount(app);
+      }
     }
-  }
-);
+  );
 
-const userDigger = document.createElement('userjs-digger');
-document.body.append(userDigger);
+  const userDigger = document.createElement('userjs-digger');
+  document.body.append(userDigger);
+}
