@@ -5,7 +5,7 @@
     class="fixed left-1/2 -translate-x-1/2 top-1/3 w-100 shadow-md rounded bg-$ud-bg text-$ud-text"
   >
     <div class="border-b border-b-$ud-border p-4 flex items-center">
-      <div>{{ $t('settings') }}</div>
+      <div>{{ t('settings') }}</div>
       <div
         class="ml-auto p-1 hover:bg-$ud-bg-hover rounded"
         @click="$emit('update:show', false)"
@@ -16,18 +16,18 @@
     <ul class="divide-y divide-$ud-border px-4 py-2">
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ $t('language') }}</p>
+          <p class="text-sm font-medium">{{ t('language') }}</p>
           <p class="text-sm text-$ud-text-secondary text-xs">
-            {{ $t('language-desc') }}
+            {{ t('language-desc') }}
           </p>
         </div>
         <LocaleSelect />
       </li>
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ $t('enable') }}</p>
+          <p class="text-sm font-medium">{{ t('enable') }}</p>
           <p class="text-sm text-$ud-text-secondary text-xs">
-            {{ $t('enable-desc') }}
+            {{ t('enable-desc') }}
           </p>
         </div>
         <Toggle v-model="enable" />
@@ -46,4 +46,6 @@
   });
 
   const enable = useSessionStorage('ud_show', true);
+
+  const { t } = useI18n();
 </script>

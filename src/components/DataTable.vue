@@ -5,28 +5,28 @@
         <thead class="bg-$ud-bg-secondary sticky">
           <tr>
             <th scope="col" class="relative p-2">
-              <span class="sr-only">{{ $t('table.toggle-expand') }}</span>
+              <span class="sr-only">{{ t('table.toggle-expand') }}</span>
             </th>
             <th
               scope="col"
               class="w-60 py-2 pl-4 pr-3 text-left text-xs font-semibold"
             >
-              {{ $t('table.title') }}
+              {{ t('table.title') }}
             </th>
             <th
               scope="col"
               class="w-18 px-3 py-2 text-left text-xs font-semibold"
             >
-              {{ $t('table.daily') }}
+              {{ t('table.daily') }}
             </th>
             <th
               scope="col"
               class="w-20 px-3 py-2 text-left text-xs font-semibold"
             >
-              {{ $t('table.update') }}
+              {{ t('table.update') }}
             </th>
             <th scope="col" class="relative py-2 pl-3 pr-4">
-              <span class="sr-only">{{ $t('table.install') }}</span>
+              <span class="sr-only">{{ t('table.install') }}</span>
             </th>
           </tr>
         </thead>
@@ -66,7 +66,7 @@
                   target="_blank"
                   class="text-indigo-600 hover:text-indigo-900"
                 >
-                  {{ $t('table.install') }}
+                  {{ t('table.install') }}
                   <span class="sr-only">, {{ item.name }}</span>
                 </a>
               </td>
@@ -75,17 +75,17 @@
               <td colspan="5" class="py-2">
                 <div class="mx-2">
                   <dl class="text-xs grid grid-cols-6 gap-y-2">
-                    <dt class="font-semibold">{{ $t('table.version') }}</dt>
+                    <dt class="font-semibold">{{ t('table.version') }}</dt>
                     <dd class="text-$ud-text">{{ item.version }}</dd>
-                    <dt class="font-semibold">{{ $t('table.score') }}</dt>
+                    <dt class="font-semibold">{{ t('table.score') }}</dt>
                     <dd class="text-$ud-text">{{ item.fan_score }}</dd>
                     <dt class="font-semibold">
-                      {{ $t('table.total-installs') }}
+                      {{ t('table.total-installs') }}
                     </dt>
                     <dd class="text-$ud-text">
                       {{ item.total_installs.toLocaleString() }}
                     </dd>
-                    <dt class="font-semibold">{{ $t('table.authors') }}</dt>
+                    <dt class="font-semibold">{{ t('table.authors') }}</dt>
                     <dd class="col-span-5 text-$ud-text">
                       <a
                         v-for="user in item.users"
@@ -97,7 +97,7 @@
                         {{ user.name }}
                       </a>
                     </dd>
-                    <dt class="font-semibold">{{ $t('table.description') }}</dt>
+                    <dt class="font-semibold">{{ t('table.description') }}</dt>
                     <dd class="col-span-5 text-$ud-text">
                       {{ item.description }}
                     </dd>
@@ -111,7 +111,7 @@
 
       <template v-if="data.length === 0">
         <div class="p-3 text-center text-sm">
-          {{ $t('table.empty') }}
+          {{ t('table.empty') }}
         </div>
       </template>
     </div>
@@ -133,4 +133,6 @@
   const toggleExpand = (i: number) => {
     expanded.value[i] = !expanded.value[i];
   };
+
+  const { t } = useI18n();
 </script>
