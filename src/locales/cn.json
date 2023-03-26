@@ -17,5 +17,34 @@
   "language": "语言",
   "language-desc": "切换用户语言设置",
   "enable": "本页启用",
-  "enable-desc": "控制本页面是否启用功能(会话)"
+  "enable-desc": "控制本页面是否启用功能(会话)",
+  "time-ago": {
+    "just-now": "就在刚刚",
+    "past": "{n}前",
+    "future": "{n}后",
+    "month": {
+      "past": "上个月",
+      "future": "下个月",
+      "n": "{n}个月"
+    },
+    "year": {
+      "past": "去年",
+      "future": "明年",
+      "n": "{n}年"
+    },
+    "day": {
+      "past": "昨天",
+      "future": "明天",
+      "n": "{n}天"
+    },
+    "week": {
+      "past": "上周",
+      "future": "下周",
+      "n": "{n}周"
+    },
+    "hour": "{n}小时",
+    "minute": "{n}分钟",
+    "second": "{n}秒",
+    "invalid": "无效"
+  }
 }

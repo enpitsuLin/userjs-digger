@@ -17,5 +17,34 @@
   "language": "Language",
   "language-desc": "Switch language",
   "enable": "Enable on this page",
-  "enable-desc": "To enable this plugin on this page or not (Session)"
+  "enable-desc": "To enable this plugin on this page or not (Session)",
+  "time-ago": {
+    "just-now": "just now",
+    "past": "{n} ago",
+    "future": "in {n}",
+    "month": {
+      "past": "last month",
+      "future": "next month",
+      "n": "{n} month | {n} months"
+    },
+    "year": {
+      "past": "last year",
+      "future": "next year",
+      "n": "{n} year | {n} years"
+    },
+    "day": {
+      "past": "yesterday",
+      "future": "tomorrow",
+      "n": "{n} day | {n} days"
+    },
+    "week": {
+      "past": "last week",
+      "future": "next week",
+      "n": "{n} week | {n} weeks"
+    },
+    "hour": "{n} hour |{n} hours",
+    "minute": "{n} minute |{n} minutes",
+    "second": "{n} second |{n} seconds",
+    "invalid": ""
+  }
 }

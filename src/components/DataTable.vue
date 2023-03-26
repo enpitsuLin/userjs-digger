@@ -56,7 +56,7 @@
               <td
                 class="whitespace-nowrap text-ellipsis break-all overflow-hidden px-3 py-2 text-xs text-$ud-text-secondary"
               >
-                {{ formatTimeAgo(new Date(item.code_updated_at)) }}
+                {{ formatTimeAgoWithI18n(new Date(item.code_updated_at)) }}
               </td>
               <td
                 class="relative whitespace-nowrap py-2 pl-3 pr-4 text-right text-xs font-medium"
@@ -119,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-  import { formatTimeAgo } from '@vueuse/core';
+  import { formatTimeAgo, UseTimeAgoUnitNamesDefault } from '@vueuse/core';
   import { GreasyforkScript } from '../composables/data';
 
   const props = defineProps<{ data: GreasyforkScript[] }>();
@@ -135,4 +135,42 @@
   };
 
   const { t } = useI18n();
+
+  const formatTimeAgoWithI18n = (from: Date) => {
+    return formatTimeAgo<UseTimeAgoUnitNamesDefault>(from, {
+      messages: {
+        justNow: t('time-ago.just-now'),
+        past: (n) => (n.match(/\d/) ? t('time-ago.past', { n }) : n),
+        future: (n) => (n.match(/\d/) ? t('time-ago.future', { n }) : n),
+        month: (n, past) =>
+          n === 1
+            ? past
+              ? t('time-ago.month.past')
+              : t('time-ago.month.future')
+            : t('time-ago.month.n', { n }),
+        year: (n, past) =>
+          n === 1
+            ? past
+              ? t('time-ago.year.past')
+              : t('time-ago.year.future')
+            : t('time-ago.year.n', { n }),
+        day: (n, past) =>
+          n === 1
+            ? past
+              ? t('time-ago.day.past')
+              : t('time-ago.day.future')
+            : t('time-ago.day.n', { n }),
+        week: (n, past) =>
+          n === 1
+            ? past
+              ? t('time-ago.week.past')
+              : t('time-ago.week.future')
+            : t('time-ago.week.n', { n }),
+        hour: (n) => t('time-ago.hour', { n }),
+        minute: (n) => t('time-ago.minute', { n }),
+        second: (n) => t('time-ago.second', { n }),
+        invalid: 'invalid'
+      }
+    });
+  };
 </script>
