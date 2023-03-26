@@ -48,16 +48,20 @@
             :class="showTable ? '-rotate-90' : 'rotate-90'"
           ></div>
         </div>
-        <span class="p-2 text-sm">
+        <span class="p-2 text-sm truncate">
           <i18n-t keypath="tip">
             <template #count>
               <span
-                class="rounded-full px-2 py-0.25 text-xs bg-indigo-500 text-white"
+                class="rounded-full mx-1 px-2 py-0.25 text-xs bg-indigo-500 text-white"
               >
                 {{ data?.length }}
               </span>
             </template>
-            <template #host>{{ pagePsl }}</template>
+            <template #host>
+              <span :title="pagePsl ?? ''">
+                {{ pagePsl }}
+              </span>
+            </template>
           </i18n-t>
         </span>
         <div
