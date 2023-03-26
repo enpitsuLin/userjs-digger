@@ -121,7 +121,8 @@
     button.value?.focus();
   };
 
+  const settings = useUserjsDiggerSettings();
   watch(locale, (val) => {
-    GM_setValue('ud_locale', val);
+    settings.value.locale = val as string;
   });
 </script>

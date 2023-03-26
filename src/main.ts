@@ -7,14 +7,11 @@ import reset from '@unocss/reset/tailwind-compat.css?raw';
 import zh from './locales/zh.json';
 import en from './locales/en.json';
 
-const storeLocale = GM_getValue<string>(
-  'ud_locale',
-  navigator.language ?? 'en'
-);
+const settings = useUserjsDiggerSettings();
 
 const i18n = createI18n<typeof en, 'en' | 'zh'>({
   legacy: false,
-  locale: storeLocale,
+  locale: settings.value.locale,
   fallbackLocale: 'en',
   messages: { zh, en }
 });
