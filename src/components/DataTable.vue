@@ -2,7 +2,7 @@
   <div class="inline-block min-w-full align-middle">
     <div class="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
       <table class="min-w-full divide-y divide-$ud-border-secondary">
-        <thead class="bg-$ud-bg-secondary sticky">
+        <thead class="bg-$ud-bg-secondary sticky select-none">
           <tr>
             <th scope="col" class="relative p-2">
               <span class="sr-only">{{ t('table.toggle-expand') }}</span>
@@ -15,15 +15,31 @@
             </th>
             <th
               scope="col"
-              class="w-18 px-3 py-2 text-left text-xs font-semibold"
+              class="w-20 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
+              @click="onSortClick('daily')"
             >
-              {{ t('table.daily') }}
+              <div class="inline-flex items-center">
+                <div>
+                  {{ t('table.daily') }}
+                </div>
+                <div class="relative ml-0.5">
+                  <div :class="sortIcon(sort.daily)"></div>
+                </div>
+              </div>
             </th>
             <th
               scope="col"
-              class="w-20 px-3 py-2 text-left text-xs font-semibold"
+              class="w-22 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
+              @click="onSortClick('updated')"
             >
-              {{ t('table.update') }}
+              <div class="inline-flex items-center">
+                <div>
+                  {{ t('table.update') }}
+                </div>
+                <div class="relative ml-0.5">
+                  <div :class="sortIcon(sort.updated)"></div>
+                </div>
+              </div>
             </th>
             <th scope="col" class="relative py-2 pl-3 pr-4">
               <span class="sr-only">{{ t('table.install') }}</span>
@@ -31,7 +47,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-$ud-border bg-$ud-bg">
-          <template v-for="(item, i) of data" :key="item.id">
+          <template v-for="(item, i) of sortedData" :key="item.id">
             <tr>
               <td
                 class="relative truncate p-2 text-right text-xs font-medium cursor-pointer"
@@ -124,6 +140,7 @@
 
   const props = defineProps<{ data: GreasyforkScript[] }>();
   const expanded = ref<boolean[]>([]);
+
   watchArray(
     () => props.data,
     () => {
@@ -132,6 +149,32 @@
   );
   const toggleExpand = (i: number) => {
     expanded.value[i] = !expanded.value[i];
+  };
+
+  const sort = reactive({
+    updated: '' as '' | 'desc' | 'asc',
+    daily: '' as '' | 'desc' | 'asc'
+  });
+
+  const sortedData = useSorted(props.data, (a, b) => {
+    if (sort.updated !== '') {
+      if (sort.updated === 'asc')
+        return +new Date(a.code_updated_at) - +new Date(b.code_updated_at);
+      return +new Date(b.code_updated_at) - +new Date(a.code_updated_at);
+    }
+    if (sort.daily === 'asc') return a.daily_installs - b.daily_installs;
+    return b.daily_installs - a.daily_installs;
+  });
+
+  const sortIcon = (sort: '' | 'desc' | 'asc') => {
+    if (sort === '') return 'i-carbon-caret-sort';
+    return { desc: 'i-carbon-caret-sort-down', asc: 'i-carbon-caret-sort-up' }[
+      sort
+    ];
+  };
+  const onSortClick = (key: 'daily' | 'updated') => {
+    sort[key] = sort[key] === '' ? 'desc' : sort[key] === 'desc' ? 'asc' : '';
+    sort[key === 'daily' ? 'updated' : 'daily'] = '';
   };
 
   const { t } = useI18n();
