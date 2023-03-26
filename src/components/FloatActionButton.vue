@@ -13,14 +13,14 @@
     style="touch-action: none"
     :style="style"
   >
-    <div class="select-none" @click="$emit('update:modelValue', !modelValue)">
+    <div class="select-none">
       <div class="i-carbon-settings w-4 h-4"></div>
     </div>
   </div>
 </template>
 <script setup lang="ts">
-  defineProps<{ modelValue: boolean }>();
-  defineEmits<{ (e: 'update:modelValue', p: boolean): void }>();
+  const props = defineProps<{ modelValue: boolean }>();
+  const emit = defineEmits<{ (e: 'update:modelValue', p: boolean): void }>();
 
   const fab = ref(null);
 
@@ -38,10 +38,18 @@
     }
   });
 
+  const time = ref(+new Date());
   const { isDragging, x, y, style } = useDraggable(fab, {
     initialValue: storePosition,
     preventDefault: true,
-    stopPropagation: true
+    onStart: () => {
+      time.value = +new Date();
+    },
+    onEnd: (pos) => {
+      if (+new Date() - time.value < 100) {
+        emit('update:modelValue', !props.modelValue);
+      }
+    }
   });
 
   const isLeft = computed(() => x.value < width.value / 2);
