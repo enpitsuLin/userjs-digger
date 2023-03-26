@@ -120,4 +120,8 @@
     toggleShow(false);
     button.value?.focus();
   };
+
+  watch(locale, (val) => {
+    GM_setValue('ud_locale', val);
+  });
 </script>

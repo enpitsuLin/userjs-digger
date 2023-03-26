@@ -7,9 +7,11 @@ import reset from '@unocss/reset/tailwind-compat.css?raw';
 import cn from './locales/cn.json';
 import en from './locales/en.json';
 
+const storeLocale = GM_getValue<string>('ud_locale', 'en');
+
 const i18n = createI18n<typeof en, 'en' | 'cn'>({
   legacy: false,
-  locale: 'en',
+  locale: storeLocale,
   fallbackLocale: 'en',
   messages: { cn, en }
 });
