@@ -66,12 +66,14 @@
   watch(width, (w, oldW) => {
     if (x.value >= oldW / 2) x.value = w - 32 - 32;
     else x.value = 16;
+    storePosition.value = { x: x.value, y: y.value };
   });
 
   watch(height, (h, oldH) => {
     if (y.value >= oldH / 2) {
       const bottom = oldH - y.value;
       y.value = h - bottom;
+      storePosition.value = { x: x.value, y: y.value };
     }
   });
 </script>

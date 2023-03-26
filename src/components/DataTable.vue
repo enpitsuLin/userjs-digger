@@ -108,7 +108,7 @@
                         :key="user.id"
                         :href="user.url"
                         target="_blank"
-                        class="underline underline-2 underline-$ud-bg"
+                        class="underline underline-$ud-border"
                       >
                         {{ user.name }}
                       </a>
