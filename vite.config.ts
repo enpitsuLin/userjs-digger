@@ -2,10 +2,13 @@ import { defineConfig, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import Component from 'unplugin-vue-components/vite';
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
 import monkey, { cdn, util } from 'vite-plugin-monkey';
 import Unocss from 'unocss/vite';
 import { UnocssBuildPlugin } from './plugins/build';
 import pkg from './package.json';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command }) => {
@@ -20,6 +23,14 @@ export default defineConfig(async ({ command }) => {
       }),
       Component({ dts: 'src/components.d.ts' }),
 
+      VueI18nPlugin({
+        /* options */
+        // locale messages resource pre-compile option
+        include: resolve(
+          dirname(fileURLToPath(import.meta.url)),
+          './src/locales/**'
+        )
+      }),
       UnocssPlugin,
 
       vue(),
@@ -42,7 +53,7 @@ export default defineConfig(async ({ command }) => {
           externalGlobals: [
             ['vue', cdn.unpkg('Vue', 'dist/vue.global.prod.js')],
             ['psl', cdn.unpkg('psl', 'dist/psl.min.js')],
-            ['vue-i18n', cdn.unpkg('VueI18n', 'dist/vue-i18n.global.prod.js')]
+            ['vue-i18n', cdn.unpkg('VueI18n', 'dist/vue-i18n.runtime.global.js')]
           ]
         }
       })
