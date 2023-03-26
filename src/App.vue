@@ -5,12 +5,18 @@
 
   const [collapse, toggleCollapse] = useToggle(false);
 
-  onClickOutside(target, (val) => {
-    if (val) {
-      toggleCollapse(false);
-      toggleShowTable(false);
-    }
-  });
+  const container = useInjectContainer();
+
+  onClickOutside(
+    target,
+    (val) => {
+      if (val) {
+        toggleCollapse(false);
+        toggleShowTable(false);
+      }
+    },
+    { ignore: [container] }
+  );
 
   const [showTable, toggleShowTable] = useToggle(false);
   const { isFetching, error, data } = useGreasyfork();
