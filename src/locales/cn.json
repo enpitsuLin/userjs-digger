@@ -9,6 +9,7 @@
     "version": "版本",
     "score": "评分",
     "total-installs": "总安装量",
+    "authors": "作者",
     "description": "脚本描述",
     "empty": "这个网站没有适用的脚本"
   },
