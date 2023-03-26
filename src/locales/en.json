@@ -18,6 +18,8 @@
   "language-desc": "Switch language",
   "enable": "Enable on this page",
   "enable-desc": "To enable this plugin on this page or not (Session)",
+  "nsfw": "NSFW",
+  "nsfw-desc": "Show Sleazyfork's result in list",
   "time-ago": {
     "just-now": "just now",
     "past": "{n} ago",

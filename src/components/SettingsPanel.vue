@@ -32,6 +32,15 @@
         </div>
         <Toggle v-model="enable" />
       </li>
+      <li class="py-2 flex items-center justify-between space-x-4">
+        <div class="flex flex-col w-4/5 overflow-hidden">
+          <p class="text-sm font-medium">{{ t('nsfw') }}</p>
+          <p class="text-sm text-$ud-text-secondary text-xs">
+            {{ t('nsfw-desc') }}
+          </p>
+        </div>
+        <Toggle v-model="settings.nsfw" />
+      </li>
     </ul>
   </div>
 </template>
@@ -45,6 +54,7 @@
     emit('update:show', false);
   });
 
+  const settings = useUserjsDiggerSettings();
   const enable = useSessionStorage('ud_show', true);
 
   const { t } = useI18n();

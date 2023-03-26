@@ -18,6 +18,8 @@
   "language-desc": "切换用户语言设置",
   "enable": "本页启用",
   "enable-desc": "控制本页面是否启用功能(会话)",
+  "nsfw": "成人内容",
+  "nsfw-desc": "列表中展示Sleazyfork的搜索结果",
   "time-ago": {
     "just-now": "就在刚刚",
     "past": "{n}前",
