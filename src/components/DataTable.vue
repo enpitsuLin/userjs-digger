@@ -62,7 +62,7 @@
                 :title="item.name"
                 class="break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
               >
-                {{ item.name }}
+                <a :href="item.url" target="_blank">{{ item.name }}</a>
               </td>
               <td
                 class="break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
