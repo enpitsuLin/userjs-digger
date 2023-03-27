@@ -19,14 +19,18 @@
   </div>
 </template>
 <script setup lang="ts">
+  import { Position } from '@vueuse/core';
+
   const props = defineProps<{ modelValue: boolean }>();
   const emit = defineEmits<{ (e: 'update:modelValue', p: boolean): void }>();
 
   const fab = ref(null);
 
+  const { width: fabWidth, height: fabHeight } = useElementBounding(fab);
+
   const { width, height } = useWindowSize();
 
-  const storePosition = computed({
+  const storePosition = computed<Position>({
     get: () => {
       const x = GM_getValue('ud_position_x', width.value - 64);
       const y = GM_getValue('ud_position_y', height.value - 64);
@@ -54,26 +58,43 @@
 
   const isLeft = computed(() => x.value < width.value / 2);
 
+  watchDebounced(
+    () => ({ x: x.value, y: y.value }),
+    (val) => {
+      storePosition.value = val;
+    },
+    { debounce: 500, deep: true }
+  );
+
   watch(isDragging, (val) => {
     if (!val) {
-      if (x.value >= width.value / 2) x.value = width.value - 32 - 32;
+      if (x.value >= width.value / 2)
+        x.value = width.value - fabWidth.value - 16;
       else x.value = 16;
-
-      storePosition.value = { x: x.value, y: y.value };
+      if (y.value >= height.value - fabHeight.value)
+        y.value = height.value - fabHeight.value;
+      else if (y.value < -16) y.value = 0;
     }
   });
 
-  watch(width, (w, oldW) => {
-    if (x.value >= oldW / 2) x.value = w - 32 - 32;
-    else x.value = 16;
-    storePosition.value = { x: x.value, y: y.value };
-  });
+  watch(
+    width,
+    (w, oldW) => {
+      if (x.value >= (oldW ?? height.value) / 2)
+        x.value = w - fabWidth.value - 16;
+      else x.value = 16;
+    },
+    { immediate: true }
+  );
 
-  watch(height, (h, oldH) => {
-    if (y.value >= oldH / 2) {
-      const bottom = oldH - y.value;
-      y.value = h - bottom;
-      storePosition.value = { x: x.value, y: y.value };
-    }
-  });
+  watch(
+    height,
+    (h, oldH) => {
+      if (y.value >= (oldH ?? height.value) / 2) {
+        const bottom = (oldH ?? height.value) - y.value;
+        y.value = h - bottom;
+      }
+    },
+    { immediate: true }
+  );
 </script>
