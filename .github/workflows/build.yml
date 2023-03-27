@@ -44,8 +44,13 @@ jobs:
       - name: Build script
         run: pnpm build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: userjs-digger.user.js
+      #     path: dist/userjs-digger.user.js
+
+      - name: Deploy to gh_page
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          name: userjs-digger.user.js
-          path: dist/userjs-digger.user.js
+          folder: dist # The folder the action should deploy.
