@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.2.0
+// @version      0.2.1
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
@@ -1889,7 +1889,16 @@
     filter: [],
     debugger: false
   };
-  const useUserjsDiggerSettings = () => useGMStorage("ud_settings", defaultSettings);
+  const toString = Object.prototype.toString;
+  const useUserjsDiggerSettings = () => {
+    const settings2 = useGMStorage("ud_settings", defaultSettings);
+    Object.entries(settings2.value).forEach(([key, value]) => {
+      if (toString.call(value) !== toString.call(defaultSettings[key])) {
+        settings2.value[key] = defaultSettings[key];
+      }
+    });
+    return settings2;
+  };
   const _hoisted_1$2 = { class: "mt-1 relative" };
   const _hoisted_2$2 = ["aria-expanded"];
   const _hoisted_3$2 = { class: "flex items-center" };
