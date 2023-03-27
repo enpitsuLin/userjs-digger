@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.1.1
+// @version      0.2.0
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
