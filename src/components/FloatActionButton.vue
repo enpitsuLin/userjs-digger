@@ -69,7 +69,7 @@
   watch(isDragging, (val) => {
     if (!val) {
       if (x.value >= width.value / 2)
-        x.value = width.value - fabWidth.value - 16;
+        x.value = width.value - fabWidth.value - 32;
       else x.value = 16;
       if (y.value >= height.value - fabHeight.value)
         y.value = height.value - fabHeight.value;
@@ -77,24 +77,16 @@
     }
   });
 
-  watch(
-    width,
-    (w, oldW) => {
-      if (x.value >= (oldW ?? height.value) / 2)
-        x.value = w - fabWidth.value - 16;
-      else x.value = 16;
-    },
-    { immediate: true }
-  );
+  watch(width, (w, oldW) => {
+    if (x.value >= (oldW ?? height.value) / 2)
+      x.value = w - fabWidth.value - 16;
+    else x.value = 16;
+  });
 
-  watch(
-    height,
-    (h, oldH) => {
-      if (y.value >= (oldH ?? height.value) / 2) {
-        const bottom = (oldH ?? height.value) - y.value;
-        y.value = h - bottom;
-      }
-    },
-    { immediate: true }
-  );
+  watch(height, (h, oldH) => {
+    if (y.value >= (oldH ?? height.value) / 2) {
+      const bottom = (oldH ?? height.value) - y.value;
+      y.value = h - bottom;
+    }
+  });
 </script>
