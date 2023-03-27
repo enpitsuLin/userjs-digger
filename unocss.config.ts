@@ -4,10 +4,11 @@ import {
   presetIcons,
   transformerDirectives
 } from 'unocss';
+import { presetForms } from '@julr/unocss-preset-forms';
 import presetRemToPx from '@unocss/preset-rem-to-px';
 
 export default defineConfig({
-  presets: [presetUno(), presetIcons(), presetRemToPx()],
+  presets: [presetUno(), presetIcons(), presetRemToPx(), presetForms()],
   preflights: [
     {
       getCSS: () => {

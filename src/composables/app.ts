@@ -3,7 +3,7 @@ export const useInjectContainer = () => inject<HTMLDivElement>('container')!;
 const defaultSettings: UserjsDiggerSettings = {
   locale: navigator.language ?? 'en',
   nsfw: false,
-  filter: '',
+  filter: [],
   debugger: false
 };
 export const useUserjsDiggerSettings = () =>

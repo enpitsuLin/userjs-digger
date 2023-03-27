@@ -20,6 +20,8 @@
   "enable-desc": "To enable this plugin on this page or not (Session)",
   "nsfw": "NSFW",
   "nsfw-desc": "Show Sleazyfork's result in list",
+  "filter": "Filter",
+  "filter-desc": "Filter user script with specific content in title",
   "time-ago": {
     "just-now": "just now",
     "past": "{n} ago",

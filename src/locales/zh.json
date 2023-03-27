@@ -20,6 +20,8 @@
   "enable-desc": "控制本页面是否启用功能(会话)",
   "nsfw": "成人内容",
   "nsfw-desc": "列表中展示Sleazyfork的搜索结果",
+  "filter": "过滤",
+  "filter-desc": "过滤标题含有指定内容的用户脚本",
   "time-ago": {
     "just-now": "就在刚刚",
     "past": "{n}前",

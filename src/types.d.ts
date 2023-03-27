@@ -3,8 +3,8 @@ declare type UserjsDiggerSettings = {
   locale: string;
   /** add Sleazyfork result */
   nsfw: boolean;
-  /** filtered site */
-  filter: string;
+  /** filtered keywords */
+  filter: string[];
   /** debugger */
   debugger: boolean;
 };

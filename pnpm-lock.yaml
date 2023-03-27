@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@iconify-json/carbon': ^1.1.16
   '@intlify/unplugin-vue-i18n': ^0.10.0
+  '@julr/unocss-preset-forms': ^0.0.5
   '@types/node': ^18.15.7
   '@types/psl': ^1.1.0
   '@unocss/preset-rem-to-px': ^0.50.6
@@ -33,6 +34,7 @@ dependencies:
 devDependencies:
   '@iconify-json/carbon': 1.1.16
   '@intlify/unplugin-vue-i18n': 0.10.0_vue-i18n@9.2.2
+  '@julr/unocss-preset-forms': 0.0.5_unocss@0.50.6
   '@types/node': 18.15.7
   '@types/psl': 1.1.0
   '@unocss/preset-rem-to-px': 0.50.6
@@ -443,6 +445,16 @@ packages:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.0
       '@jridgewell/sourcemap-codec': 1.4.14
+    dev: true
+
+  /@julr/unocss-preset-forms/0.0.5_unocss@0.50.6:
+    resolution: {integrity: sha512-lUMhKc8KooObDWIs0wyqh903ix5a6PRHtq1RAszhyEoDR2aqbnfSXnv0QiG2lDp2AWafioNbgquFGiUyyJCDVg==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      unocss: '>= 0.31.13 < 1'
+    dependencies:
+      mini-svg-data-uri: 1.4.4
+      unocss: 0.50.6_vite@4.2.1
     dev: true
 
   /@nodelib/fs.scandir/2.1.5:
@@ -1698,6 +1710,11 @@ packages:
   /mimic-fn/2.1.0:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
     engines: {node: '>=6'}
+    dev: true
+
+  /mini-svg-data-uri/1.4.4:
+    resolution: {integrity: sha512-r9deDe9p5FJUPZAk3A59wGH7Ii9YrjjWw0jmw/liSbHl2CHiyXj6FcDXDu2K3TjVAXqiJdaw3xxwlZZr9E6nHg==}
+    hasBin: true
     dev: true
 
   /minimatch/3.1.2:
