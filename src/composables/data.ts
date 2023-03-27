@@ -64,6 +64,8 @@ export function useDataList() {
       greasyfork.value?.concat(
         settings.value.nsfw ? sleazyfork.value ?? [] : []
       ) ?? []
+    ).filter((item) =>
+      settings.value.filter.every((keywords) => !item.name.includes(keywords))
     );
   });
 
