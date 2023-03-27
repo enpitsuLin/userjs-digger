@@ -1,0 +1,2495 @@
+// ==UserScript==
+// @name         Userjs digger
+// @namespace    userjs-digger
+// @version      0.1.1
+// @author       enpitsulin <enpitsulin@gmail.com>
+// @description  Show all userjs available in current site
+// @license      MIT
+// @icon         https://user-images.githubusercontent.com/29378026/227717136-4c9dfba4-0f90-41a2-905a-4cf19e751b5c.png
+// @include      *
+// @require      https://unpkg.com/vue@3.2.47/dist/vue.global.prod.js
+// @require      https://unpkg.com/psl@1.9.0/dist/psl.min.js
+// @require      https://unpkg.com/vue-i18n@9.2.2/dist/vue-i18n.runtime.global.js
+// @connect      greasyfork.org
+// @grant        GM_deleteValue
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
+// @noframes
+// ==/UserScript==
+
+(e=>{const d=document.createElement("style");d.dataset.source="vite-plugin-monkey",d.textContent=e,document.head.append(d)})(" userjs-digger{--ud-text: #262626;--ud-text-secondary: #31313188;--ud-bg: #f5f5f5;--ud-bg-secondary: #d0d0d0;--ud-bg-hover: #d4d4d4;--ud-border: #e5e7eb;--ud-border-secondary: #d1d5db}.dark userjs-digger,[data-color-mode=dark] userjs-digger,[data-theme=dark] userjs-digger{--ud-text: #f5f5f5;--ud-text-secondary: #d5d5d588;--ud-bg: #262626;--ud-bg-secondary: #525252;--ud-bg-hover: #737373;--ud-border: #374151;--ud-border-secondary: #4b5563} ");
+
+(function (vue, vueI18n, psl) {
+  'use strict';
+
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => {
+    __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+    return value;
+  };
+  var _a;
+  const isClient = typeof window !== "undefined";
+  const isFunction = (val) => typeof val === "function";
+  const isString = (val) => typeof val === "string";
+  const noop = () => {
+  };
+  const isIOS = isClient && ((_a = window == null ? void 0 : window.navigator) == null ? void 0 : _a.userAgent) && /iP(ad|hone|od)/.test(window.navigator.userAgent);
+  function resolveUnref(r) {
+    return typeof r === "function" ? r() : vue.unref(r);
+  }
+  function createFilterWrapper(filter, fn) {
+    function wrapper(...args) {
+      return new Promise((resolve, reject) => {
+        Promise.resolve(filter(() => fn.apply(this, args), { fn, thisArg: this, args })).then(resolve).catch(reject);
+      });
+    }
+    return wrapper;
+  }
+  const bypassFilter = (invoke) => {
+    return invoke();
+  };
+  function debounceFilter(ms, options = {}) {
+    let timer;
+    let maxTimer;
+    let lastRejector = noop;
+    const _clearTimeout = (timer2) => {
+      clearTimeout(timer2);
+      lastRejector();
+      lastRejector = noop;
+    };
+    const filter = (invoke) => {
+      const duration = resolveUnref(ms);
+      const maxDuration = resolveUnref(options.maxWait);
+      if (timer)
+        _clearTimeout(timer);
+      if (duration <= 0 || maxDuration !== void 0 && maxDuration <= 0) {
+        if (maxTimer) {
+          _clearTimeout(maxTimer);
+          maxTimer = null;
+        }
+        return Promise.resolve(invoke());
+      }
+      return new Promise((resolve, reject) => {
+        lastRejector = options.rejectOnCancel ? reject : resolve;
+        if (maxDuration && !maxTimer) {
+          maxTimer = setTimeout(() => {
+            if (timer)
+              _clearTimeout(timer);
+            maxTimer = null;
+            resolve(invoke());
+          }, maxDuration);
+        }
+        timer = setTimeout(() => {
+          if (maxTimer)
+            _clearTimeout(maxTimer);
+          maxTimer = null;
+          resolve(invoke());
+        }, duration);
+      });
+    };
+    return filter;
+  }
+  function pausableFilter(extendFilter = bypassFilter) {
+    const isActive = vue.ref(true);
+    function pause() {
+      isActive.value = false;
+    }
+    function resume() {
+      isActive.value = true;
+    }
+    const eventFilter = (...args) => {
+      if (isActive.value)
+        extendFilter(...args);
+    };
+    return { isActive: vue.readonly(isActive), pause, resume, eventFilter };
+  }
+  function promiseTimeout(ms, throwOnTimeout = false, reason = "Timeout") {
+    return new Promise((resolve, reject) => {
+      if (throwOnTimeout)
+        setTimeout(() => reject(reason), ms);
+      else
+        setTimeout(resolve, ms);
+    });
+  }
+  function containsProp(obj, ...props) {
+    return props.some((k) => k in obj);
+  }
+  function tryOnScopeDispose(fn) {
+    if (vue.getCurrentScope()) {
+      vue.onScopeDispose(fn);
+      return true;
+    }
+    return false;
+  }
+  function createEventHook() {
+    const fns = /* @__PURE__ */ new Set();
+    const off = (fn) => {
+      fns.delete(fn);
+    };
+    const on = (fn) => {
+      fns.add(fn);
+      const offFn = () => off(fn);
+      tryOnScopeDispose(offFn);
+      return {
+        off: offFn
+      };
+    };
+    const trigger = (param) => {
+      return Promise.all(Array.from(fns).map((fn) => fn(param)));
+    };
+    return {
+      on,
+      off,
+      trigger
+    };
+  }
+  function resolveRef(r) {
+    return typeof r === "function" ? vue.computed(r) : vue.ref(r);
+  }
+  var __defProp$9 = Object.defineProperty;
+  var __defProps$7 = Object.defineProperties;
+  var __getOwnPropDescs$7 = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols$b = Object.getOwnPropertySymbols;
+  var __hasOwnProp$b = Object.prototype.hasOwnProperty;
+  var __propIsEnum$b = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$9 = (obj, key, value) => key in obj ? __defProp$9(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$9 = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$b.call(b, prop))
+        __defNormalProp$9(a, prop, b[prop]);
+    if (__getOwnPropSymbols$b)
+      for (var prop of __getOwnPropSymbols$b(b)) {
+        if (__propIsEnum$b.call(b, prop))
+          __defNormalProp$9(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps$7 = (a, b) => __defProps$7(a, __getOwnPropDescs$7(b));
+  function toRefs(objectRef) {
+    if (!vue.isRef(objectRef))
+      return vue.toRefs(objectRef);
+    const result = Array.isArray(objectRef.value) ? new Array(objectRef.value.length) : {};
+    for (const key in objectRef.value) {
+      result[key] = vue.customRef(() => ({
+        get() {
+          return objectRef.value[key];
+        },
+        set(v) {
+          if (Array.isArray(objectRef.value)) {
+            const copy = [...objectRef.value];
+            copy[key] = v;
+            objectRef.value = copy;
+          } else {
+            const newObject = __spreadProps$7(__spreadValues$9({}, objectRef.value), { [key]: v });
+            Object.setPrototypeOf(newObject, objectRef.value);
+            objectRef.value = newObject;
+          }
+        }
+      }));
+    }
+    return result;
+  }
+  function tryOnMounted(fn, sync = true) {
+    if (vue.getCurrentInstance())
+      vue.onMounted(fn);
+    else if (sync)
+      fn();
+    else
+      vue.nextTick(fn);
+  }
+  function tryOnUnmounted(fn) {
+    if (vue.getCurrentInstance())
+      vue.onUnmounted(fn);
+  }
+  function createUntil(r, isNot = false) {
+    function toMatch(condition, { flush = "sync", deep = false, timeout, throwOnTimeout } = {}) {
+      let stop = null;
+      const watcher = new Promise((resolve) => {
+        stop = vue.watch(r, (v) => {
+          if (condition(v) !== isNot) {
+            stop == null ? void 0 : stop();
+            resolve(v);
+          }
+        }, {
+          flush,
+          deep,
+          immediate: true
+        });
+      });
+      const promises = [watcher];
+      if (timeout != null) {
+        promises.push(promiseTimeout(timeout, throwOnTimeout).then(() => resolveUnref(r)).finally(() => stop == null ? void 0 : stop()));
+      }
+      return Promise.race(promises);
+    }
+    function toBe(value, options) {
+      if (!vue.isRef(value))
+        return toMatch((v) => v === value, options);
+      const { flush = "sync", deep = false, timeout, throwOnTimeout } = options != null ? options : {};
+      let stop = null;
+      const watcher = new Promise((resolve) => {
+        stop = vue.watch([r, value], ([v1, v2]) => {
+          if (isNot !== (v1 === v2)) {
+            stop == null ? void 0 : stop();
+            resolve(v1);
+          }
+        }, {
+          flush,
+          deep,
+          immediate: true
+        });
+      });
+      const promises = [watcher];
+      if (timeout != null) {
+        promises.push(promiseTimeout(timeout, throwOnTimeout).then(() => resolveUnref(r)).finally(() => {
+          stop == null ? void 0 : stop();
+          return resolveUnref(r);
+        }));
+      }
+      return Promise.race(promises);
+    }
+    function toBeTruthy(options) {
+      return toMatch((v) => Boolean(v), options);
+    }
+    function toBeNull(options) {
+      return toBe(null, options);
+    }
+    function toBeUndefined(options) {
+      return toBe(void 0, options);
+    }
+    function toBeNaN(options) {
+      return toMatch(Number.isNaN, options);
+    }
+    function toContains(value, options) {
+      return toMatch((v) => {
+        const array = Array.from(v);
+        return array.includes(value) || array.includes(resolveUnref(value));
+      }, options);
+    }
+    function changed(options) {
+      return changedTimes(1, options);
+    }
+    function changedTimes(n = 1, options) {
+      let count = -1;
+      return toMatch(() => {
+        count += 1;
+        return count >= n;
+      }, options);
+    }
+    if (Array.isArray(resolveUnref(r))) {
+      const instance = {
+        toMatch,
+        toContains,
+        changed,
+        changedTimes,
+        get not() {
+          return createUntil(r, !isNot);
+        }
+      };
+      return instance;
+    } else {
+      const instance = {
+        toMatch,
+        toBe,
+        toBeTruthy,
+        toBeNull,
+        toBeNaN,
+        toBeUndefined,
+        changed,
+        changedTimes,
+        get not() {
+          return createUntil(r, !isNot);
+        }
+      };
+      return instance;
+    }
+  }
+  function until(r) {
+    return createUntil(r);
+  }
+  function useTimeoutFn(cb, interval, options = {}) {
+    const {
+      immediate = true
+    } = options;
+    const isPending = vue.ref(false);
+    let timer = null;
+    function clear() {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    }
+    function stop() {
+      isPending.value = false;
+      clear();
+    }
+    function start(...args) {
+      clear();
+      isPending.value = true;
+      timer = setTimeout(() => {
+        isPending.value = false;
+        timer = null;
+        cb(...args);
+      }, resolveUnref(interval));
+    }
+    if (immediate) {
+      isPending.value = true;
+      if (isClient)
+        start();
+    }
+    tryOnScopeDispose(stop);
+    return {
+      isPending: vue.readonly(isPending),
+      start,
+      stop
+    };
+  }
+  function useToggle(initialValue = false, options = {}) {
+    const {
+      truthyValue = true,
+      falsyValue = false
+    } = options;
+    const valueIsRef = vue.isRef(initialValue);
+    const _value = vue.ref(initialValue);
+    function toggle(value) {
+      if (arguments.length) {
+        _value.value = value;
+        return _value.value;
+      } else {
+        const truthy = resolveUnref(truthyValue);
+        _value.value = _value.value === truthy ? resolveUnref(falsyValue) : truthy;
+        return _value.value;
+      }
+    }
+    if (valueIsRef)
+      return toggle;
+    else
+      return [_value, toggle];
+  }
+  function watchArray(source, cb, options) {
+    let oldList = (options == null ? void 0 : options.immediate) ? [] : [
+      ...source instanceof Function ? source() : Array.isArray(source) ? source : vue.unref(source)
+    ];
+    return vue.watch(source, (newList, _, onCleanup) => {
+      const oldListRemains = new Array(oldList.length);
+      const added = [];
+      for (const obj of newList) {
+        let found = false;
+        for (let i = 0; i < oldList.length; i++) {
+          if (!oldListRemains[i] && obj === oldList[i]) {
+            oldListRemains[i] = true;
+            found = true;
+            break;
+          }
+        }
+        if (!found)
+          added.push(obj);
+      }
+      const removed = oldList.filter((_2, i) => !oldListRemains[i]);
+      cb(newList, oldList, added, removed, onCleanup);
+      oldList = [...newList];
+    }, options);
+  }
+  var __getOwnPropSymbols$8 = Object.getOwnPropertySymbols;
+  var __hasOwnProp$8 = Object.prototype.hasOwnProperty;
+  var __propIsEnum$8 = Object.prototype.propertyIsEnumerable;
+  var __objRest$5 = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp$8.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols$8)
+      for (var prop of __getOwnPropSymbols$8(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum$8.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
+  function watchWithFilter(source, cb, options = {}) {
+    const _a2 = options, {
+      eventFilter = bypassFilter
+    } = _a2, watchOptions = __objRest$5(_a2, [
+      "eventFilter"
+    ]);
+    return vue.watch(source, createFilterWrapper(eventFilter, cb), watchOptions);
+  }
+  var __defProp$6 = Object.defineProperty;
+  var __defProps$6 = Object.defineProperties;
+  var __getOwnPropDescs$6 = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols$6 = Object.getOwnPropertySymbols;
+  var __hasOwnProp$6 = Object.prototype.hasOwnProperty;
+  var __propIsEnum$6 = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$6 = (obj, key, value) => key in obj ? __defProp$6(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$6 = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$6.call(b, prop))
+        __defNormalProp$6(a, prop, b[prop]);
+    if (__getOwnPropSymbols$6)
+      for (var prop of __getOwnPropSymbols$6(b)) {
+        if (__propIsEnum$6.call(b, prop))
+          __defNormalProp$6(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps$6 = (a, b) => __defProps$6(a, __getOwnPropDescs$6(b));
+  var __objRest$3$1 = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp$6.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols$6)
+      for (var prop of __getOwnPropSymbols$6(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum$6.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
+  function watchDebounced(source, cb, options = {}) {
+    const _a2 = options, {
+      debounce = 0,
+      maxWait = void 0
+    } = _a2, watchOptions = __objRest$3$1(_a2, [
+      "debounce",
+      "maxWait"
+    ]);
+    return watchWithFilter(source, cb, __spreadProps$6(__spreadValues$6({}, watchOptions), {
+      eventFilter: debounceFilter(debounce, { maxWait })
+    }));
+  }
+  var __defProp$2 = Object.defineProperty;
+  var __defProps$2 = Object.defineProperties;
+  var __getOwnPropDescs$2 = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols$2 = Object.getOwnPropertySymbols;
+  var __hasOwnProp$2 = Object.prototype.hasOwnProperty;
+  var __propIsEnum$2 = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$2 = (obj, key, value) => key in obj ? __defProp$2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$2 = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$2.call(b, prop))
+        __defNormalProp$2(a, prop, b[prop]);
+    if (__getOwnPropSymbols$2)
+      for (var prop of __getOwnPropSymbols$2(b)) {
+        if (__propIsEnum$2.call(b, prop))
+          __defNormalProp$2(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps$2 = (a, b) => __defProps$2(a, __getOwnPropDescs$2(b));
+  var __objRest$1 = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp$2.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols$2)
+      for (var prop of __getOwnPropSymbols$2(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum$2.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
+  function watchPausable(source, cb, options = {}) {
+    const _a2 = options, {
+      eventFilter: filter
+    } = _a2, watchOptions = __objRest$1(_a2, [
+      "eventFilter"
+    ]);
+    const { eventFilter, pause, resume, isActive } = pausableFilter(filter);
+    const stop = watchWithFilter(source, cb, __spreadProps$2(__spreadValues$2({}, watchOptions), {
+      eventFilter
+    }));
+    return { stop, pause, resume, isActive };
+  }
+  function unrefElement(elRef) {
+    var _a2;
+    const plain = resolveUnref(elRef);
+    return (_a2 = plain == null ? void 0 : plain.$el) != null ? _a2 : plain;
+  }
+  const defaultWindow = isClient ? window : void 0;
+  const defaultDocument = isClient ? window.document : void 0;
+  function useEventListener(...args) {
+    let target;
+    let events;
+    let listeners;
+    let options;
+    if (isString(args[0]) || Array.isArray(args[0])) {
+      [events, listeners, options] = args;
+      target = defaultWindow;
+    } else {
+      [target, events, listeners, options] = args;
+    }
+    if (!target)
+      return noop;
+    if (!Array.isArray(events))
+      events = [events];
+    if (!Array.isArray(listeners))
+      listeners = [listeners];
+    const cleanups = [];
+    const cleanup = () => {
+      cleanups.forEach((fn) => fn());
+      cleanups.length = 0;
+    };
+    const register = (el, event, listener, options2) => {
+      el.addEventListener(event, listener, options2);
+      return () => el.removeEventListener(event, listener, options2);
+    };
+    const stopWatch = vue.watch(() => [unrefElement(target), resolveUnref(options)], ([el, options2]) => {
+      cleanup();
+      if (!el)
+        return;
+      cleanups.push(...events.flatMap((event) => {
+        return listeners.map((listener) => register(el, event, listener, options2));
+      }));
+    }, { immediate: true, flush: "post" });
+    const stop = () => {
+      stopWatch();
+      cleanup();
+    };
+    tryOnScopeDispose(stop);
+    return stop;
+  }
+  let _iOSWorkaround = false;
+  function onClickOutside(target, handler, options = {}) {
+    const { window: window2 = defaultWindow, ignore = [], capture = true, detectIframe = false } = options;
+    if (!window2)
+      return;
+    if (isIOS && !_iOSWorkaround) {
+      _iOSWorkaround = true;
+      Array.from(window2.document.body.children).forEach((el) => el.addEventListener("click", noop));
+    }
+    let shouldListen = true;
+    const shouldIgnore = (event) => {
+      return ignore.some((target2) => {
+        if (typeof target2 === "string") {
+          return Array.from(window2.document.querySelectorAll(target2)).some((el) => el === event.target || event.composedPath().includes(el));
+        } else {
+          const el = unrefElement(target2);
+          return el && (event.target === el || event.composedPath().includes(el));
+        }
+      });
+    };
+    const listener = (event) => {
+      const el = unrefElement(target);
+      if (!el || el === event.target || event.composedPath().includes(el))
+        return;
+      if (event.detail === 0)
+        shouldListen = !shouldIgnore(event);
+      if (!shouldListen) {
+        shouldListen = true;
+        return;
+      }
+      handler(event);
+    };
+    const cleanup = [
+      useEventListener(window2, "click", listener, { passive: true, capture }),
+      useEventListener(window2, "pointerdown", (e) => {
+        const el = unrefElement(target);
+        if (el)
+          shouldListen = !e.composedPath().includes(el) && !shouldIgnore(e);
+      }, { passive: true }),
+      detectIframe && useEventListener(window2, "blur", (event) => {
+        var _a2;
+        const el = unrefElement(target);
+        if (((_a2 = window2.document.activeElement) == null ? void 0 : _a2.tagName) === "IFRAME" && !(el == null ? void 0 : el.contains(window2.document.activeElement)))
+          handler(event);
+      })
+    ].filter(Boolean);
+    const stop = () => cleanup.forEach((fn) => fn());
+    return stop;
+  }
+  function useSupported(callback, sync = false) {
+    const isSupported = vue.ref();
+    const update = () => isSupported.value = Boolean(callback());
+    update();
+    tryOnMounted(update, sync);
+    return isSupported;
+  }
+  const _global = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+  const globalKey = "__vueuse_ssr_handlers__";
+  _global[globalKey] = _global[globalKey] || {};
+  const handlers = _global[globalKey];
+  function getSSRHandler(key, fallback) {
+    return handlers[key] || fallback;
+  }
+  function guessSerializerType(rawInit) {
+    return rawInit == null ? "any" : rawInit instanceof Set ? "set" : rawInit instanceof Map ? "map" : rawInit instanceof Date ? "date" : typeof rawInit === "boolean" ? "boolean" : typeof rawInit === "string" ? "string" : typeof rawInit === "object" ? "object" : !Number.isNaN(rawInit) ? "number" : "any";
+  }
+  var __defProp$k = Object.defineProperty;
+  var __getOwnPropSymbols$n = Object.getOwnPropertySymbols;
+  var __hasOwnProp$n = Object.prototype.hasOwnProperty;
+  var __propIsEnum$n = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$k = (obj, key, value) => key in obj ? __defProp$k(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$k = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$n.call(b, prop))
+        __defNormalProp$k(a, prop, b[prop]);
+    if (__getOwnPropSymbols$n)
+      for (var prop of __getOwnPropSymbols$n(b)) {
+        if (__propIsEnum$n.call(b, prop))
+          __defNormalProp$k(a, prop, b[prop]);
+      }
+    return a;
+  };
+  const StorageSerializers = {
+    boolean: {
+      read: (v) => v === "true",
+      write: (v) => String(v)
+    },
+    object: {
+      read: (v) => JSON.parse(v),
+      write: (v) => JSON.stringify(v)
+    },
+    number: {
+      read: (v) => Number.parseFloat(v),
+      write: (v) => String(v)
+    },
+    any: {
+      read: (v) => v,
+      write: (v) => String(v)
+    },
+    string: {
+      read: (v) => v,
+      write: (v) => String(v)
+    },
+    map: {
+      read: (v) => new Map(JSON.parse(v)),
+      write: (v) => JSON.stringify(Array.from(v.entries()))
+    },
+    set: {
+      read: (v) => new Set(JSON.parse(v)),
+      write: (v) => JSON.stringify(Array.from(v))
+    },
+    date: {
+      read: (v) => new Date(v),
+      write: (v) => v.toISOString()
+    }
+  };
+  const customStorageEventName = "vueuse-storage";
+  function useStorage(key, defaults, storage, options = {}) {
+    var _a2;
+    const {
+      flush = "pre",
+      deep = true,
+      listenToStorageChanges = true,
+      writeDefaults = true,
+      mergeDefaults = false,
+      shallow,
+      window: window2 = defaultWindow,
+      eventFilter,
+      onError = (e) => {
+        console.error(e);
+      }
+    } = options;
+    const data = (shallow ? vue.shallowRef : vue.ref)(defaults);
+    if (!storage) {
+      try {
+        storage = getSSRHandler("getDefaultStorage", () => {
+          var _a22;
+          return (_a22 = defaultWindow) == null ? void 0 : _a22.localStorage;
+        })();
+      } catch (e) {
+        onError(e);
+      }
+    }
+    if (!storage)
+      return data;
+    const rawInit = resolveUnref(defaults);
+    const type = guessSerializerType(rawInit);
+    const serializer = (_a2 = options.serializer) != null ? _a2 : StorageSerializers[type];
+    const { pause: pauseWatch, resume: resumeWatch } = watchPausable(data, () => write(data.value), { flush, deep, eventFilter });
+    if (window2 && listenToStorageChanges) {
+      useEventListener(window2, "storage", update);
+      useEventListener(window2, customStorageEventName, updateFromCustomEvent);
+    }
+    update();
+    return data;
+    function write(v) {
+      try {
+        if (v == null) {
+          storage.removeItem(key);
+        } else {
+          const serialized = serializer.write(v);
+          const oldValue = storage.getItem(key);
+          if (oldValue !== serialized) {
+            storage.setItem(key, serialized);
+            if (window2) {
+              window2.dispatchEvent(new CustomEvent(customStorageEventName, {
+                detail: {
+                  key,
+                  oldValue,
+                  newValue: serialized,
+                  storageArea: storage
+                }
+              }));
+            }
+          }
+        }
+      } catch (e) {
+        onError(e);
+      }
+    }
+    function read(event) {
+      const rawValue = event ? event.newValue : storage.getItem(key);
+      if (rawValue == null) {
+        if (writeDefaults && rawInit !== null)
+          storage.setItem(key, serializer.write(rawInit));
+        return rawInit;
+      } else if (!event && mergeDefaults) {
+        const value = serializer.read(rawValue);
+        if (isFunction(mergeDefaults))
+          return mergeDefaults(value, rawInit);
+        else if (type === "object" && !Array.isArray(value))
+          return __spreadValues$k(__spreadValues$k({}, rawInit), value);
+        return value;
+      } else if (typeof rawValue !== "string") {
+        return rawValue;
+      } else {
+        return serializer.read(rawValue);
+      }
+    }
+    function updateFromCustomEvent(event) {
+      update(event.detail);
+    }
+    function update(event) {
+      if (event && event.storageArea !== storage)
+        return;
+      if (event && event.key == null) {
+        data.value = rawInit;
+        return;
+      }
+      if (event && event.key !== key)
+        return;
+      pauseWatch();
+      try {
+        data.value = read(event);
+      } catch (e) {
+        onError(e);
+      } finally {
+        if (event)
+          vue.nextTick(resumeWatch);
+        else
+          resumeWatch();
+      }
+    }
+  }
+  var __defProp$f = Object.defineProperty;
+  var __defProps$5 = Object.defineProperties;
+  var __getOwnPropDescs$5 = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols$i = Object.getOwnPropertySymbols;
+  var __hasOwnProp$i = Object.prototype.hasOwnProperty;
+  var __propIsEnum$i = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$f = (obj, key, value) => key in obj ? __defProp$f(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$f = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$i.call(b, prop))
+        __defNormalProp$f(a, prop, b[prop]);
+    if (__getOwnPropSymbols$i)
+      for (var prop of __getOwnPropSymbols$i(b)) {
+        if (__propIsEnum$i.call(b, prop))
+          __defNormalProp$f(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps$5 = (a, b) => __defProps$5(a, __getOwnPropDescs$5(b));
+  function useDraggable(target, options = {}) {
+    var _a2, _b, _c;
+    const draggingElement = (_a2 = options.draggingElement) != null ? _a2 : defaultWindow;
+    const draggingHandle = (_b = options.handle) != null ? _b : target;
+    const position = vue.ref((_c = resolveUnref(options.initialValue)) != null ? _c : { x: 0, y: 0 });
+    const pressedDelta = vue.ref();
+    const filterEvent = (e) => {
+      if (options.pointerTypes)
+        return options.pointerTypes.includes(e.pointerType);
+      return true;
+    };
+    const handleEvent = (e) => {
+      if (resolveUnref(options.preventDefault))
+        e.preventDefault();
+      if (resolveUnref(options.stopPropagation))
+        e.stopPropagation();
+    };
+    const start = (e) => {
+      var _a22;
+      if (!filterEvent(e))
+        return;
+      if (resolveUnref(options.exact) && e.target !== resolveUnref(target))
+        return;
+      const rect = resolveUnref(target).getBoundingClientRect();
+      const pos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      if (((_a22 = options.onStart) == null ? void 0 : _a22.call(options, pos, e)) === false)
+        return;
+      pressedDelta.value = pos;
+      handleEvent(e);
+    };
+    const move = (e) => {
+      var _a22;
+      if (!filterEvent(e))
+        return;
+      if (!pressedDelta.value)
+        return;
+      position.value = {
+        x: e.clientX - pressedDelta.value.x,
+        y: e.clientY - pressedDelta.value.y
+      };
+      (_a22 = options.onMove) == null ? void 0 : _a22.call(options, position.value, e);
+      handleEvent(e);
+    };
+    const end = (e) => {
+      var _a22;
+      if (!filterEvent(e))
+        return;
+      if (!pressedDelta.value)
+        return;
+      pressedDelta.value = void 0;
+      (_a22 = options.onEnd) == null ? void 0 : _a22.call(options, position.value, e);
+      handleEvent(e);
+    };
+    if (isClient) {
+      useEventListener(draggingHandle, "pointerdown", start, true);
+      useEventListener(draggingElement, "pointermove", move, true);
+      useEventListener(draggingElement, "pointerup", end, true);
+    }
+    return __spreadProps$5(__spreadValues$f({}, toRefs(position)), {
+      position,
+      isDragging: vue.computed(() => !!pressedDelta.value),
+      style: vue.computed(() => `left:${position.value.x}px;top:${position.value.y}px;`)
+    });
+  }
+  var __getOwnPropSymbols$h = Object.getOwnPropertySymbols;
+  var __hasOwnProp$h = Object.prototype.hasOwnProperty;
+  var __propIsEnum$h = Object.prototype.propertyIsEnumerable;
+  var __objRest$3 = (source, exclude) => {
+    var target = {};
+    for (var prop in source)
+      if (__hasOwnProp$h.call(source, prop) && exclude.indexOf(prop) < 0)
+        target[prop] = source[prop];
+    if (source != null && __getOwnPropSymbols$h)
+      for (var prop of __getOwnPropSymbols$h(source)) {
+        if (exclude.indexOf(prop) < 0 && __propIsEnum$h.call(source, prop))
+          target[prop] = source[prop];
+      }
+    return target;
+  };
+  function useResizeObserver(target, callback, options = {}) {
+    const _a2 = options, { window: window2 = defaultWindow } = _a2, observerOptions = __objRest$3(_a2, ["window"]);
+    let observer;
+    const isSupported = useSupported(() => window2 && "ResizeObserver" in window2);
+    const cleanup = () => {
+      if (observer) {
+        observer.disconnect();
+        observer = void 0;
+      }
+    };
+    const stopWatch = vue.watch(() => unrefElement(target), (el) => {
+      cleanup();
+      if (isSupported.value && window2 && el) {
+        observer = new ResizeObserver(callback);
+        observer.observe(el, observerOptions);
+      }
+    }, { immediate: true, flush: "post" });
+    const stop = () => {
+      cleanup();
+      stopWatch();
+    };
+    tryOnScopeDispose(stop);
+    return {
+      isSupported,
+      stop
+    };
+  }
+  function useElementBounding(target, options = {}) {
+    const {
+      reset: reset2 = true,
+      windowResize = true,
+      windowScroll = true,
+      immediate = true
+    } = options;
+    const height = vue.ref(0);
+    const bottom = vue.ref(0);
+    const left = vue.ref(0);
+    const right = vue.ref(0);
+    const top = vue.ref(0);
+    const width = vue.ref(0);
+    const x = vue.ref(0);
+    const y = vue.ref(0);
+    function update() {
+      const el = unrefElement(target);
+      if (!el) {
+        if (reset2) {
+          height.value = 0;
+          bottom.value = 0;
+          left.value = 0;
+          right.value = 0;
+          top.value = 0;
+          width.value = 0;
+          x.value = 0;
+          y.value = 0;
+        }
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      height.value = rect.height;
+      bottom.value = rect.bottom;
+      left.value = rect.left;
+      right.value = rect.right;
+      top.value = rect.top;
+      width.value = rect.width;
+      x.value = rect.x;
+      y.value = rect.y;
+    }
+    useResizeObserver(target, update);
+    vue.watch(() => unrefElement(target), (ele) => !ele && update());
+    if (windowScroll)
+      useEventListener("scroll", update, { capture: true, passive: true });
+    if (windowResize)
+      useEventListener("resize", update, { passive: true });
+    tryOnMounted(() => {
+      if (immediate)
+        update();
+    });
+    return {
+      height,
+      bottom,
+      left,
+      right,
+      top,
+      width,
+      x,
+      y,
+      update
+    };
+  }
+  var __defProp$d = Object.defineProperty;
+  var __defProps$4 = Object.defineProperties;
+  var __getOwnPropDescs$4 = Object.getOwnPropertyDescriptors;
+  var __getOwnPropSymbols$f = Object.getOwnPropertySymbols;
+  var __hasOwnProp$f = Object.prototype.hasOwnProperty;
+  var __propIsEnum$f = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp$d = (obj, key, value) => key in obj ? __defProp$d(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues$d = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp$f.call(b, prop))
+        __defNormalProp$d(a, prop, b[prop]);
+    if (__getOwnPropSymbols$f)
+      for (var prop of __getOwnPropSymbols$f(b)) {
+        if (__propIsEnum$f.call(b, prop))
+          __defNormalProp$d(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps$4 = (a, b) => __defProps$4(a, __getOwnPropDescs$4(b));
+  const payloadMapping = {
+    json: "application/json",
+    text: "text/plain"
+  };
+  function isFetchOptions(obj) {
+    return obj && containsProp(obj, "immediate", "refetch", "initialData", "timeout", "beforeFetch", "afterFetch", "onFetchError", "fetch");
+  }
+  function headersToObject(headers) {
+    if (typeof Headers !== "undefined" && headers instanceof Headers)
+      return Object.fromEntries([...headers.entries()]);
+    return headers;
+  }
+  function useFetch(url, ...args) {
+    var _a2;
+    const supportsAbort = typeof AbortController === "function";
+    let fetchOptions = {};
+    let options = { immediate: true, refetch: false, timeout: 0 };
+    const config = {
+      method: "GET",
+      type: "text",
+      payload: void 0
+    };
+    if (args.length > 0) {
+      if (isFetchOptions(args[0]))
+        options = __spreadValues$d(__spreadValues$d({}, options), args[0]);
+      else
+        fetchOptions = args[0];
+    }
+    if (args.length > 1) {
+      if (isFetchOptions(args[1]))
+        options = __spreadValues$d(__spreadValues$d({}, options), args[1]);
+    }
+    const {
+      fetch = (_a2 = defaultWindow) == null ? void 0 : _a2.fetch,
+      initialData,
+      timeout
+    } = options;
+    const responseEvent = createEventHook();
+    const errorEvent = createEventHook();
+    const finallyEvent = createEventHook();
+    const isFinished = vue.ref(false);
+    const isFetching = vue.ref(false);
+    const aborted = vue.ref(false);
+    const statusCode = vue.ref(null);
+    const response = vue.shallowRef(null);
+    const error = vue.shallowRef(null);
+    const data = vue.shallowRef(initialData || null);
+    const canAbort = vue.computed(() => supportsAbort && isFetching.value);
+    let controller;
+    let timer;
+    const abort = () => {
+      if (supportsAbort) {
+        controller == null ? void 0 : controller.abort();
+        controller = new AbortController();
+        controller.signal.onabort = () => aborted.value = true;
+        fetchOptions = __spreadProps$4(__spreadValues$d({}, fetchOptions), {
+          signal: controller.signal
+        });
+      }
+    };
+    const loading = (isLoading) => {
+      isFetching.value = isLoading;
+      isFinished.value = !isLoading;
+    };
+    if (timeout)
+      timer = useTimeoutFn(abort, timeout, { immediate: false });
+    const execute = async (throwOnFailed = false) => {
+      var _a22;
+      abort();
+      loading(true);
+      error.value = null;
+      statusCode.value = null;
+      aborted.value = false;
+      const defaultFetchOptions = {
+        method: config.method,
+        headers: {}
+      };
+      if (config.payload) {
+        const headers = headersToObject(defaultFetchOptions.headers);
+        if (config.payloadType)
+          headers["Content-Type"] = (_a22 = payloadMapping[config.payloadType]) != null ? _a22 : config.payloadType;
+        const payload = resolveUnref(config.payload);
+        defaultFetchOptions.body = config.payloadType === "json" ? JSON.stringify(payload) : payload;
+      }
+      let isCanceled = false;
+      const context = {
+        url: resolveUnref(url),
+        options: __spreadValues$d(__spreadValues$d({}, defaultFetchOptions), fetchOptions),
+        cancel: () => {
+          isCanceled = true;
+        }
+      };
+      if (options.beforeFetch)
+        Object.assign(context, await options.beforeFetch(context));
+      if (isCanceled || !fetch) {
+        loading(false);
+        return Promise.resolve(null);
+      }
+      let responseData = null;
+      if (timer)
+        timer.start();
+      return new Promise((resolve, reject) => {
+        var _a3;
+        fetch(context.url, __spreadProps$4(__spreadValues$d(__spreadValues$d({}, defaultFetchOptions), context.options), {
+          headers: __spreadValues$d(__spreadValues$d({}, headersToObject(defaultFetchOptions.headers)), headersToObject((_a3 = context.options) == null ? void 0 : _a3.headers))
+        })).then(async (fetchResponse) => {
+          response.value = fetchResponse;
+          statusCode.value = fetchResponse.status;
+          responseData = await fetchResponse[config.type]();
+          if (!fetchResponse.ok) {
+            data.value = initialData || null;
+            throw new Error(fetchResponse.statusText);
+          }
+          if (options.afterFetch)
+            ({ data: responseData } = await options.afterFetch({ data: responseData, response: fetchResponse }));
+          data.value = responseData;
+          responseEvent.trigger(fetchResponse);
+          return resolve(fetchResponse);
+        }).catch(async (fetchError) => {
+          let errorData = fetchError.message || fetchError.name;
+          if (options.onFetchError)
+            ({ error: errorData } = await options.onFetchError({ data: responseData, error: fetchError, response: response.value }));
+          error.value = errorData;
+          errorEvent.trigger(fetchError);
+          if (throwOnFailed)
+            return reject(fetchError);
+          return resolve(null);
+        }).finally(() => {
+          loading(false);
+          if (timer)
+            timer.stop();
+          finallyEvent.trigger(null);
+        });
+      });
+    };
+    const refetch = resolveRef(options.refetch);
+    vue.watch([
+      refetch,
+      resolveRef(url)
+    ], ([refetch2]) => refetch2 && execute(), { deep: true });
+    const shell = {
+      isFinished,
+      statusCode,
+      response,
+      error,
+      data,
+      isFetching,
+      canAbort,
+      aborted,
+      abort,
+      execute,
+      onFetchResponse: responseEvent.on,
+      onFetchError: errorEvent.on,
+      onFetchFinally: finallyEvent.on,
+      get: setMethod("GET"),
+      put: setMethod("PUT"),
+      post: setMethod("POST"),
+      delete: setMethod("DELETE"),
+      patch: setMethod("PATCH"),
+      head: setMethod("HEAD"),
+      options: setMethod("OPTIONS"),
+      json: setType("json"),
+      text: setType("text"),
+      blob: setType("blob"),
+      arrayBuffer: setType("arrayBuffer"),
+      formData: setType("formData")
+    };
+    function setMethod(method) {
+      return (payload, payloadType) => {
+        if (!isFetching.value) {
+          config.method = method;
+          config.payload = payload;
+          config.payloadType = payloadType;
+          if (vue.isRef(config.payload)) {
+            vue.watch([
+              refetch,
+              resolveRef(config.payload)
+            ], ([refetch2]) => refetch2 && execute(), { deep: true });
+          }
+          const rawPayload = resolveUnref(config.payload);
+          if (!payloadType && rawPayload && Object.getPrototypeOf(rawPayload) === Object.prototype && !(rawPayload instanceof FormData))
+            config.payloadType = "json";
+          return __spreadProps$4(__spreadValues$d({}, shell), {
+            then(onFulfilled, onRejected) {
+              return waitUntilFinished().then(onFulfilled, onRejected);
+            }
+          });
+        }
+        return void 0;
+      };
+    }
+    function waitUntilFinished() {
+      return new Promise((resolve, reject) => {
+        until(isFinished).toBe(true).then(() => resolve(shell)).catch((error2) => reject(error2));
+      });
+    }
+    function setType(type) {
+      return () => {
+        if (!isFetching.value) {
+          config.type = type;
+          return __spreadProps$4(__spreadValues$d({}, shell), {
+            then(onFulfilled, onRejected) {
+              return waitUntilFinished().then(onFulfilled, onRejected);
+            }
+          });
+        }
+        return void 0;
+      };
+    }
+    if (options.immediate)
+      setTimeout(execute, 0);
+    return __spreadProps$4(__spreadValues$d({}, shell), {
+      then(onFulfilled, onRejected) {
+        return waitUntilFinished().then(onFulfilled, onRejected);
+      }
+    });
+  }
+  function useScriptTag(src, onLoaded = noop, options = {}) {
+    const {
+      immediate = true,
+      manual = false,
+      type = "text/javascript",
+      async = true,
+      crossOrigin,
+      referrerPolicy,
+      noModule,
+      defer,
+      document: document2 = defaultDocument,
+      attrs = {}
+    } = options;
+    const scriptTag = vue.ref(null);
+    let _promise = null;
+    const loadScript = (waitForScriptLoad) => new Promise((resolve, reject) => {
+      const resolveWithElement = (el2) => {
+        scriptTag.value = el2;
+        resolve(el2);
+        return el2;
+      };
+      if (!document2) {
+        resolve(false);
+        return;
+      }
+      let shouldAppend = false;
+      let el = document2.querySelector(`script[src="${resolveUnref(src)}"]`);
+      if (!el) {
+        el = document2.createElement("script");
+        el.type = type;
+        el.async = async;
+        el.src = resolveUnref(src);
+        if (defer)
+          el.defer = defer;
+        if (crossOrigin)
+          el.crossOrigin = crossOrigin;
+        if (noModule)
+          el.noModule = noModule;
+        if (referrerPolicy)
+          el.referrerPolicy = referrerPolicy;
+        Object.entries(attrs).forEach(([name, value]) => el == null ? void 0 : el.setAttribute(name, value));
+        shouldAppend = true;
+      } else if (el.hasAttribute("data-loaded")) {
+        resolveWithElement(el);
+      }
+      el.addEventListener("error", (event) => reject(event));
+      el.addEventListener("abort", (event) => reject(event));
+      el.addEventListener("load", () => {
+        el.setAttribute("data-loaded", "true");
+        onLoaded(el);
+        resolveWithElement(el);
+      });
+      if (shouldAppend)
+        el = document2.head.appendChild(el);
+      if (!waitForScriptLoad)
+        resolveWithElement(el);
+    });
+    const load = (waitForScriptLoad = true) => {
+      if (!_promise)
+        _promise = loadScript(waitForScriptLoad);
+      return _promise;
+    };
+    const unload = () => {
+      if (!document2)
+        return;
+      _promise = null;
+      if (scriptTag.value)
+        scriptTag.value = null;
+      const el = document2.querySelector(`script[src="${resolveUnref(src)}"]`);
+      if (el)
+        document2.head.removeChild(el);
+    };
+    if (immediate && !manual)
+      tryOnMounted(load);
+    if (!manual)
+      tryOnUnmounted(unload);
+    return { scriptTag, load, unload };
+  }
+  function useSessionStorage(key, initialValue, options = {}) {
+    const { window: window2 = defaultWindow } = options;
+    return useStorage(key, initialValue, window2 == null ? void 0 : window2.sessionStorage, options);
+  }
+  const defaultSortFn = (source, compareFn) => source.sort(compareFn);
+  const defaultCompare = (a, b) => a - b;
+  function useSorted(...args) {
+    var _a2, _b, _c, _d;
+    const [source] = args;
+    let compareFn = defaultCompare;
+    let options = {};
+    if (args.length === 2) {
+      if (typeof args[1] === "object") {
+        options = args[1];
+        compareFn = (_a2 = options.compareFn) != null ? _a2 : defaultCompare;
+      } else {
+        compareFn = (_b = args[1]) != null ? _b : defaultCompare;
+      }
+    } else if (args.length > 2) {
+      compareFn = (_c = args[1]) != null ? _c : defaultCompare;
+      options = (_d = args[2]) != null ? _d : {};
+    }
+    const {
+      dirty = false,
+      sortFn = defaultSortFn
+    } = options;
+    if (!dirty)
+      return vue.computed(() => sortFn([...vue.unref(source)], compareFn));
+    vue.watchEffect(() => {
+      const result = sortFn(vue.unref(source), compareFn);
+      if (vue.isRef(source))
+        source.value = result;
+      else
+        source.splice(0, source.length, ...result);
+    });
+    return source;
+  }
+  const DEFAULT_UNITS = [
+    { max: 6e4, value: 1e3, name: "second" },
+    { max: 276e4, value: 6e4, name: "minute" },
+    { max: 72e6, value: 36e5, name: "hour" },
+    { max: 5184e5, value: 864e5, name: "day" },
+    { max: 24192e5, value: 6048e5, name: "week" },
+    { max: 28512e6, value: 2592e6, name: "month" },
+    { max: Infinity, value: 31536e6, name: "year" }
+  ];
+  const DEFAULT_MESSAGES = {
+    justNow: "just now",
+    past: (n) => n.match(/\d/) ? `${n} ago` : n,
+    future: (n) => n.match(/\d/) ? `in ${n}` : n,
+    month: (n, past) => n === 1 ? past ? "last month" : "next month" : `${n} month${n > 1 ? "s" : ""}`,
+    year: (n, past) => n === 1 ? past ? "last year" : "next year" : `${n} year${n > 1 ? "s" : ""}`,
+    day: (n, past) => n === 1 ? past ? "yesterday" : "tomorrow" : `${n} day${n > 1 ? "s" : ""}`,
+    week: (n, past) => n === 1 ? past ? "last week" : "next week" : `${n} week${n > 1 ? "s" : ""}`,
+    hour: (n) => `${n} hour${n > 1 ? "s" : ""}`,
+    minute: (n) => `${n} minute${n > 1 ? "s" : ""}`,
+    second: (n) => `${n} second${n > 1 ? "s" : ""}`,
+    invalid: ""
+  };
+  const DEFAULT_FORMATTER = (date) => date.toISOString().slice(0, 10);
+  function formatTimeAgo(from, options = {}, now = Date.now()) {
+    var _a2;
+    const {
+      max,
+      messages = DEFAULT_MESSAGES,
+      fullDateFormatter = DEFAULT_FORMATTER,
+      units = DEFAULT_UNITS,
+      showSecond = false,
+      rounding = "round"
+    } = options;
+    const roundFn = typeof rounding === "number" ? (n) => +n.toFixed(rounding) : Math[rounding];
+    const diff = +now - +from;
+    const absDiff = Math.abs(diff);
+    function getValue(diff2, unit) {
+      return roundFn(Math.abs(diff2) / unit.value);
+    }
+    function format(diff2, unit) {
+      const val = getValue(diff2, unit);
+      const past = diff2 > 0;
+      const str = applyFormat(unit.name, val, past);
+      return applyFormat(past ? "past" : "future", str, past);
+    }
+    function applyFormat(name, val, isPast) {
+      const formatter = messages[name];
+      if (typeof formatter === "function")
+        return formatter(val, isPast);
+      return formatter.replace("{0}", val.toString());
+    }
+    if (absDiff < 6e4 && !showSecond)
+      return messages.justNow;
+    if (typeof max === "number" && absDiff > max)
+      return fullDateFormatter(new Date(from));
+    if (typeof max === "string") {
+      const unitMax = (_a2 = units.find((i) => i.name === max)) == null ? void 0 : _a2.max;
+      if (unitMax && absDiff > unitMax)
+        return fullDateFormatter(new Date(from));
+    }
+    for (const [idx, unit] of units.entries()) {
+      const val = getValue(diff, unit);
+      if (val <= 0 && units[idx - 1])
+        return format(diff, units[idx - 1]);
+      if (absDiff < unit.max)
+        return format(diff, unit);
+    }
+    return messages.invalid;
+  }
+  function useWindowSize(options = {}) {
+    const {
+      window: window2 = defaultWindow,
+      initialWidth = Infinity,
+      initialHeight = Infinity,
+      listenOrientation = true,
+      includeScrollbar = true
+    } = options;
+    const width = vue.ref(initialWidth);
+    const height = vue.ref(initialHeight);
+    const update = () => {
+      if (window2) {
+        if (includeScrollbar) {
+          width.value = window2.innerWidth;
+          height.value = window2.innerHeight;
+        } else {
+          width.value = window2.document.documentElement.clientWidth;
+          height.value = window2.document.documentElement.clientHeight;
+        }
+      }
+    };
+    update();
+    tryOnMounted(update);
+    useEventListener("resize", update, { passive: true });
+    if (listenOrientation)
+      useEventListener("orientationchange", update, { passive: true });
+    return { width, height };
+  }
+  const _hoisted_1$5 = { class: "inline-block min-w-full align-middle" };
+  const _hoisted_2$4 = { class: "overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5" };
+  const _hoisted_3$3 = { class: "min-w-full divide-y divide-$ud-border-secondary" };
+  const _hoisted_4$3 = { class: "bg-$ud-bg-secondary sticky select-none" };
+  const _hoisted_5$3 = {
+    scope: "col",
+    class: "relative p-2"
+  };
+  const _hoisted_6$3 = { class: "sr-only" };
+  const _hoisted_7$3 = {
+    scope: "col",
+    class: "w-60 py-2 pl-4 pr-3 text-left text-xs font-semibold"
+  };
+  const _hoisted_8$3 = { class: "inline-flex items-center" };
+  const _hoisted_9$2 = { class: "relative ml-0.5" };
+  const _hoisted_10$2 = { class: "inline-flex items-center" };
+  const _hoisted_11$2 = { class: "relative ml-0.5" };
+  const _hoisted_12$1 = {
+    scope: "col",
+    class: "relative py-2 pl-3 pr-4"
+  };
+  const _hoisted_13$1 = { class: "sr-only" };
+  const _hoisted_14$1 = { class: "divide-y divide-$ud-border bg-$ud-bg" };
+  const _hoisted_15$1 = ["onClick"];
+  const _hoisted_16$1 = ["title"];
+  const _hoisted_17 = { class: "break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
+  const _hoisted_18 = { class: "break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
+  const _hoisted_19 = { class: "relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium" };
+  const _hoisted_20 = ["href"];
+  const _hoisted_21 = { class: "sr-only" };
+  const _hoisted_22 = { key: 0 };
+  const _hoisted_23 = {
+    colspan: "5",
+    class: "py-2"
+  };
+  const _hoisted_24 = { class: "mx-2" };
+  const _hoisted_25 = { class: "text-xs grid grid-cols-6 gap-y-2" };
+  const _hoisted_26 = { class: "font-semibold" };
+  const _hoisted_27 = { class: "text-$ud-text" };
+  const _hoisted_28 = { class: "font-semibold" };
+  const _hoisted_29 = { class: "text-$ud-text" };
+  const _hoisted_30 = { class: "font-semibold" };
+  const _hoisted_31 = { class: "text-$ud-text" };
+  const _hoisted_32 = { class: "font-semibold" };
+  const _hoisted_33 = { class: "col-span-5 text-$ud-text" };
+  const _hoisted_34 = ["href"];
+  const _hoisted_35 = { class: "font-semibold" };
+  const _hoisted_36 = { class: "col-span-5 text-$ud-text" };
+  const _hoisted_37 = {
+    key: 0,
+    class: "p-3 text-center text-sm"
+  };
+  const _sfc_main$5 = /* @__PURE__ */ vue.defineComponent({
+    __name: "DataTable",
+    props: {
+      data: null
+    },
+    setup(__props) {
+      const props = __props;
+      const expanded = vue.ref([]);
+      watchArray(
+        () => props.data,
+        () => {
+          expanded.value = Array.from({ length: props.data.length }, () => false);
+        }
+      );
+      const toggleExpand = (i) => {
+        expanded.value[i] = !expanded.value[i];
+      };
+      const sort = vue.reactive({
+        updated: "",
+        daily: ""
+      });
+      const sortedData = useSorted(
+        vue.computed(() => props.data),
+        (a, b) => {
+          if (sort.updated !== "") {
+            if (sort.updated === "asc")
+              return +new Date(a.code_updated_at) - +new Date(b.code_updated_at);
+            return +new Date(b.code_updated_at) - +new Date(a.code_updated_at);
+          }
+          if (sort.daily === "asc")
+            return a.daily_installs - b.daily_installs;
+          return b.daily_installs - a.daily_installs;
+        }
+      );
+      const sortIcon = (sort2) => {
+        if (sort2 === "")
+          return "i-carbon-caret-sort";
+        return { desc: "i-carbon-caret-sort-down", asc: "i-carbon-caret-sort-up" }[sort2];
+      };
+      const onSortClick = (key) => {
+        sort[key] = sort[key] === "" ? "desc" : sort[key] === "desc" ? "asc" : "";
+        sort[key === "daily" ? "updated" : "daily"] = "";
+      };
+      const { t } = vueI18n.useI18n();
+      const formatTimeAgoWithI18n = (from) => {
+        return formatTimeAgo(from, {
+          messages: {
+            justNow: t("time-ago.just-now"),
+            past: (n) => n.match(/\d/) ? t("time-ago.past", { n }) : n,
+            future: (n) => n.match(/\d/) ? t("time-ago.future", { n }) : n,
+            month: (n, past) => n === 1 ? past ? t("time-ago.month.past") : t("time-ago.month.future") : t("time-ago.month.n", { n }),
+            year: (n, past) => n === 1 ? past ? t("time-ago.year.past") : t("time-ago.year.future") : t("time-ago.year.n", { n }),
+            day: (n, past) => n === 1 ? past ? t("time-ago.day.past") : t("time-ago.day.future") : t("time-ago.day.n", { n }),
+            week: (n, past) => n === 1 ? past ? t("time-ago.week.past") : t("time-ago.week.future") : t("time-ago.week.n", { n }),
+            hour: (n) => t("time-ago.hour", { n }),
+            minute: (n) => t("time-ago.minute", { n }),
+            second: (n) => t("time-ago.second", { n }),
+            invalid: "invalid"
+          }
+        });
+      };
+      return (_ctx, _cache) => {
+        return vue.openBlock(), vue.createElementBlock("div", _hoisted_1$5, [
+          vue.createElementVNode("div", _hoisted_2$4, [
+            vue.createElementVNode("table", _hoisted_3$3, [
+              vue.createElementVNode("thead", _hoisted_4$3, [
+                vue.createElementVNode("tr", null, [
+                  vue.createElementVNode("th", _hoisted_5$3, [
+                    vue.createElementVNode("span", _hoisted_6$3, vue.toDisplayString(vue.unref(t)("table.toggle-expand")), 1)
+                  ]),
+                  vue.createElementVNode("th", _hoisted_7$3, vue.toDisplayString(vue.unref(t)("table.title")), 1),
+                  vue.createElementVNode("th", {
+                    scope: "col",
+                    class: "w-20 px-2 py-2 text-left text-xs font-semibold cursor-pointer",
+                    onClick: _cache[0] || (_cache[0] = ($event) => onSortClick("daily"))
+                  }, [
+                    vue.createElementVNode("div", _hoisted_8$3, [
+                      vue.createElementVNode("div", null, vue.toDisplayString(vue.unref(t)("table.daily")), 1),
+                      vue.createElementVNode("div", _hoisted_9$2, [
+                        vue.createElementVNode("div", {
+                          class: vue.normalizeClass(sortIcon(vue.unref(sort).daily))
+                        }, null, 2)
+                      ])
+                    ])
+                  ]),
+                  vue.createElementVNode("th", {
+                    scope: "col",
+                    class: "w-22 px-2 py-2 text-left text-xs font-semibold cursor-pointer",
+                    onClick: _cache[1] || (_cache[1] = ($event) => onSortClick("updated"))
+                  }, [
+                    vue.createElementVNode("div", _hoisted_10$2, [
+                      vue.createElementVNode("div", null, vue.toDisplayString(vue.unref(t)("table.update")), 1),
+                      vue.createElementVNode("div", _hoisted_11$2, [
+                        vue.createElementVNode("div", {
+                          class: vue.normalizeClass(sortIcon(vue.unref(sort).updated))
+                        }, null, 2)
+                      ])
+                    ])
+                  ]),
+                  vue.createElementVNode("th", _hoisted_12$1, [
+                    vue.createElementVNode("span", _hoisted_13$1, vue.toDisplayString(vue.unref(t)("table.install")), 1)
+                  ])
+                ])
+              ]),
+              vue.createElementVNode("tbody", _hoisted_14$1, [
+                (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(vue.unref(sortedData), (item, i) => {
+                  return vue.openBlock(), vue.createElementBlock(vue.Fragment, {
+                    key: item.id
+                  }, [
+                    vue.createElementVNode("tr", null, [
+                      vue.createElementVNode("td", {
+                        class: "relative truncate p-2 text-right text-xs font-medium cursor-pointer",
+                        onClick: ($event) => toggleExpand(i)
+                      }, [
+                        vue.createElementVNode("div", {
+                          class: vue.normalizeClass(["i-carbon-chevron-right", vue.unref(expanded)[i] && "rotate-90"])
+                        }, null, 2)
+                      ], 8, _hoisted_15$1),
+                      vue.createElementVNode("td", {
+                        title: item.name,
+                        class: "break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
+                      }, vue.toDisplayString(item.name), 9, _hoisted_16$1),
+                      vue.createElementVNode("td", _hoisted_17, vue.toDisplayString(item.daily_installs), 1),
+                      vue.createElementVNode("td", _hoisted_18, vue.toDisplayString(formatTimeAgoWithI18n(new Date(item.code_updated_at))), 1),
+                      vue.createElementVNode("td", _hoisted_19, [
+                        vue.createElementVNode("a", {
+                          href: item.code_url,
+                          target: "_blank",
+                          class: "text-indigo-600 hover:text-indigo-900"
+                        }, [
+                          vue.createTextVNode(vue.toDisplayString(vue.unref(t)("table.install")) + " ", 1),
+                          vue.createElementVNode("span", _hoisted_21, ", " + vue.toDisplayString(item.name), 1)
+                        ], 8, _hoisted_20)
+                      ])
+                    ]),
+                    vue.unref(expanded)[i] ? (vue.openBlock(), vue.createElementBlock("tr", _hoisted_22, [
+                      vue.createElementVNode("td", _hoisted_23, [
+                        vue.createElementVNode("div", _hoisted_24, [
+                          vue.createElementVNode("dl", _hoisted_25, [
+                            vue.createElementVNode("dt", _hoisted_26, vue.toDisplayString(vue.unref(t)("table.version")), 1),
+                            vue.createElementVNode("dd", _hoisted_27, vue.toDisplayString(item.version), 1),
+                            vue.createElementVNode("dt", _hoisted_28, vue.toDisplayString(vue.unref(t)("table.score")), 1),
+                            vue.createElementVNode("dd", _hoisted_29, vue.toDisplayString(item.fan_score), 1),
+                            vue.createElementVNode("dt", _hoisted_30, vue.toDisplayString(vue.unref(t)("table.total-installs")), 1),
+                            vue.createElementVNode("dd", _hoisted_31, vue.toDisplayString(item.total_installs.toLocaleString()), 1),
+                            vue.createElementVNode("dt", _hoisted_32, vue.toDisplayString(vue.unref(t)("table.authors")), 1),
+                            vue.createElementVNode("dd", _hoisted_33, [
+                              (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(item.users, (user) => {
+                                return vue.openBlock(), vue.createElementBlock("a", {
+                                  key: user.id,
+                                  href: user.url,
+                                  target: "_blank",
+                                  class: "underline underline-$ud-border"
+                                }, vue.toDisplayString(user.name), 9, _hoisted_34);
+                              }), 128))
+                            ]),
+                            vue.createElementVNode("dt", _hoisted_35, vue.toDisplayString(vue.unref(t)("table.description")), 1),
+                            vue.createElementVNode("dd", _hoisted_36, vue.toDisplayString(item.description), 1)
+                          ])
+                        ])
+                      ])
+                    ])) : vue.createCommentVNode("", true)
+                  ], 64);
+                }), 128))
+              ])
+            ]),
+            __props.data.length === 0 ? (vue.openBlock(), vue.createElementBlock("div", _hoisted_37, vue.toDisplayString(vue.unref(t)("table.empty")), 1)) : vue.createCommentVNode("", true)
+          ])
+        ]);
+      };
+    }
+  });
+  var _GM_deleteValue = /* @__PURE__ */ (() => typeof GM_deleteValue != "undefined" ? GM_deleteValue : void 0)();
+  var _GM_getValue = /* @__PURE__ */ (() => typeof GM_getValue != "undefined" ? GM_getValue : void 0)();
+  var _GM_setValue = /* @__PURE__ */ (() => typeof GM_setValue != "undefined" ? GM_setValue : void 0)();
+  var _unsafeWindow = /* @__PURE__ */ (() => typeof unsafeWindow != "undefined" ? unsafeWindow : void 0)();
+  const _hoisted_1$4 = /* @__PURE__ */ vue.createElementVNode("div", { class: "select-none" }, [
+    /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-settings w-4 h-4" })
+  ], -1);
+  const _hoisted_2$3 = [
+    _hoisted_1$4
+  ];
+  const _sfc_main$4 = /* @__PURE__ */ vue.defineComponent({
+    __name: "FloatActionButton",
+    props: {
+      modelValue: { type: Boolean }
+    },
+    emits: ["update:modelValue"],
+    setup(__props, { emit }) {
+      const props = __props;
+      const fab = vue.ref(null);
+      const { width: fabWidth, height: fabHeight } = useElementBounding(fab);
+      const { width, height } = useWindowSize();
+      const storePosition = vue.computed({
+        get: () => {
+          const x2 = _GM_getValue("ud_position_x", width.value - 64);
+          const y2 = _GM_getValue("ud_position_y", height.value - 64);
+          return { x: x2, y: y2 };
+        },
+        set(v) {
+          _GM_setValue("ud_position_x", v.x);
+          _GM_setValue("ud_position_y", v.y);
+        }
+      });
+      const time = vue.ref(+/* @__PURE__ */ new Date());
+      const { isDragging, x, y, style: style2 } = useDraggable(fab, {
+        initialValue: storePosition,
+        preventDefault: true,
+        onStart: () => {
+          time.value = +/* @__PURE__ */ new Date();
+        },
+        onEnd: (pos) => {
+          if (+/* @__PURE__ */ new Date() - time.value < 100) {
+            emit("update:modelValue", !props.modelValue);
+          }
+        }
+      });
+      const isLeft = vue.computed(() => x.value < width.value / 2);
+      watchDebounced(
+        () => ({ x: x.value, y: y.value }),
+        (val) => {
+          storePosition.value = val;
+        },
+        { debounce: 500, deep: true }
+      );
+      vue.watch(isDragging, (val) => {
+        if (!val) {
+          if (x.value >= width.value / 2)
+            x.value = width.value - fabWidth.value - 16;
+          else
+            x.value = 16;
+          if (y.value >= height.value - fabHeight.value)
+            y.value = height.value - fabHeight.value;
+          else if (y.value < -16)
+            y.value = 0;
+        }
+      });
+      vue.watch(
+        width,
+        (w, oldW) => {
+          if (x.value >= (oldW ?? height.value) / 2)
+            x.value = w - fabWidth.value - 16;
+          else
+            x.value = 16;
+        },
+        { immediate: true }
+      );
+      vue.watch(
+        height,
+        (h, oldH) => {
+          if (y.value >= (oldH ?? height.value) / 2) {
+            const bottom = (oldH ?? height.value) - y.value;
+            y.value = h - bottom;
+          }
+        },
+        { immediate: true }
+      );
+      return (_ctx, _cache) => {
+        return vue.openBlock(), vue.createElementBlock("div", {
+          ref_key: "fab",
+          ref: fab,
+          class: vue.normalizeClass(["fixed ease-out rounded-md shadow-md bg-$ud-bg text-$ud-text p-2", [
+            vue.unref(isDragging) ? "transition-transform" : "transition-all",
+            __props.modelValue ? vue.unref(isLeft) ? "-translate-x-[calc(100%_+_1rem)]" : "translate-x-[calc(100%_+_1rem)]" : "translate-x-0"
+          ]]),
+          style: vue.normalizeStyle([{ "touch-action": "none" }, vue.unref(style2)])
+        }, _hoisted_2$3, 6);
+      };
+    }
+  });
+  const _hoisted_1$3 = ["aria-checked"];
+  const _sfc_main$3 = /* @__PURE__ */ vue.defineComponent({
+    __name: "Toggle",
+    props: {
+      modelValue: { type: Boolean }
+    },
+    emits: ["update:modelValue"],
+    setup(__props) {
+      return (_ctx, _cache) => {
+        return vue.openBlock(), vue.createElementBlock("button", {
+          type: "button",
+          class: vue.normalizeClass(["relative inline-flex flex-shrink-0 h-4 w-9 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500", __props.modelValue ? "bg-indigo-600" : "bg-gray-200"]),
+          role: "switch",
+          "aria-checked": __props.modelValue,
+          onClick: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("update:modelValue", !__props.modelValue))
+        }, [
+          vue.createElementVNode("span", {
+            "aria-hidden": "true",
+            class: vue.normalizeClass(["pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200", __props.modelValue ? "translate-x-5" : "translate-x-0"])
+          }, null, 2)
+        ], 10, _hoisted_1$3);
+      };
+    }
+  });
+  const GMStorage = {
+    getItem: function(key) {
+      return _GM_getValue(key);
+    },
+    setItem: function(key, value) {
+      _GM_setValue(key, value);
+    },
+    removeItem: function(key) {
+      _GM_deleteValue(key);
+    }
+  };
+  const useGMStorage = (key, defaults) => useStorage(key, defaults, GMStorage);
+  const useInjectContainer = () => vue.inject("container");
+  const defaultSettings = {
+    locale: navigator.language ?? "en",
+    nsfw: false,
+    filter: "",
+    debugger: false
+  };
+  const useUserjsDiggerSettings = () => useGMStorage("ud_settings", defaultSettings);
+  const _hoisted_1$2 = { class: "mt-1 relative" };
+  const _hoisted_2$2 = ["aria-expanded"];
+  const _hoisted_3$2 = { class: "flex items-center" };
+  const _hoisted_4$2 = { class: "block truncate uppercase" };
+  const _hoisted_5$2 = /* @__PURE__ */ vue.createElementVNode("span", { class: "absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none" }, [
+    /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-chevron-sort" })
+  ], -1);
+  const _hoisted_6$2 = ["aria-activedescendant"];
+  const _hoisted_7$2 = ["id", "onClick", "onKeydown"];
+  const _hoisted_8$2 = { class: "flex items-center" };
+  const _hoisted_9$1 = {
+    key: 0,
+    class: "text-indigo-600 group-focus:text-$ud-text hover:text-$ud-text absolute inset-y-0 right-0 flex items-center pr-4"
+  };
+  const _hoisted_10$1 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-checkmark" }, null, -1);
+  const _hoisted_11$1 = [
+    _hoisted_10$1
+  ];
+  const _sfc_main$2 = /* @__PURE__ */ vue.defineComponent({
+    __name: "LocaleSelect",
+    setup(__props) {
+      const { locale, messages } = vueI18n.useI18n({ useScope: "global" });
+      const [show, toggleShow] = useToggle(false);
+      const locales = vue.computed(() => Object.keys(messages.value));
+      const onChangeLocale = (to) => {
+        locale.value = to;
+        toggleShow(false);
+      };
+      const button = vue.ref(null);
+      const listbox = vue.ref(null);
+      const activedescendant = vue.ref(0);
+      const onKeyboardShow = () => {
+        toggleShow(true);
+        vue.nextTick(() => {
+          var _a2;
+          ((_a2 = listbox.value) == null ? void 0 : _a2.children.item(0)).focus();
+        });
+      };
+      const onKeyArrowUp = (e) => {
+        activedescendant.value = activedescendant.value - 1 < 0 ? locales.value.length - 1 : activedescendant.value - 1;
+        const parentEl = e.target.parentElement;
+        if (!parentEl)
+          return;
+        activedescendant.value, parentEl.children.item(activedescendant.value).focus();
+      };
+      const onKeyArrowDown = (e) => {
+        activedescendant.value = activedescendant.value + 1 > locales.value.length - 1 ? 0 : activedescendant.value + 1;
+        const parentEl = e.target.parentElement;
+        if (!parentEl)
+          return;
+        activedescendant.value, parentEl.children.item(activedescendant.value).focus();
+      };
+      const onLocaleEnter = (to) => {
+        var _a2;
+        onChangeLocale(to);
+        (_a2 = button.value) == null ? void 0 : _a2.focus();
+      };
+      const onEsc = () => {
+        var _a2;
+        toggleShow(false);
+        (_a2 = button.value) == null ? void 0 : _a2.focus();
+      };
+      const settings2 = useUserjsDiggerSettings();
+      vue.watch(locale, (val) => {
+        settings2.value.locale = val;
+      });
+      return (_ctx, _cache) => {
+        return vue.openBlock(), vue.createElementBlock("div", _hoisted_1$2, [
+          vue.createElementVNode("button", {
+            ref_key: "button",
+            ref: button,
+            type: "button",
+            class: "relative w-full bg-$ud-bg border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm",
+            "aria-haspopup": "listbox",
+            "aria-expanded": vue.unref(show),
+            onClick: _cache[0] || (_cache[0] = ($event) => vue.unref(toggleShow)()),
+            onKeydown: _cache[1] || (_cache[1] = vue.withKeys(vue.withModifiers(($event) => onKeyboardShow(), ["prevent"]), ["arrow-down"]))
+          }, [
+            vue.createElementVNode("div", _hoisted_3$2, [
+              vue.createElementVNode("span", _hoisted_4$2, vue.toDisplayString(vue.unref(locale)), 1)
+            ]),
+            _hoisted_5$2
+          ], 40, _hoisted_2$2),
+          vue.createVNode(vue.Transition, {
+            "leave-active-class": "transition ease-in duration-100",
+            "leave-from-class": "opacity-100",
+            "leave-to-class": "opacity-0"
+          }, {
+            default: vue.withCtx(() => [
+              vue.unref(show) ? (vue.openBlock(), vue.createElementBlock("ul", {
+                key: 0,
+                ref_key: "listbox",
+                ref: listbox,
+                class: "absolute z-10 mt-1 w-full bg-$ud-bg shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm",
+                tabindex: "-1",
+                "aria-activedescendant": `listbox-option-${vue.unref(activedescendant)}`
+              }, [
+                (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(vue.unref(locales), (lang, index) => {
+                  return vue.openBlock(), vue.createElementBlock("li", {
+                    class: "group text-$ud-text cursor-default select-none relative py-2 pl-3 pr-9 focus:text-white focus:bg-indigo-600 hover:text-white hover:bg-indigo-600",
+                    role: "option",
+                    tabindex: "0",
+                    id: `listbox-option-${index + 1}`,
+                    onClick: ($event) => onChangeLocale(lang),
+                    onKeydown: [
+                      vue.withKeys(vue.withModifiers(($event) => onLocaleEnter(lang), ["prevent"]), ["enter"]),
+                      vue.withKeys(vue.withModifiers(onKeyArrowUp, ["prevent"]), ["arrow-up"]),
+                      vue.withKeys(vue.withModifiers(onKeyArrowDown, ["prevent"]), ["arrow-down"]),
+                      vue.withKeys(vue.withModifiers(onEsc, ["prevent"]), ["esc"])
+                    ]
+                  }, [
+                    vue.createElementVNode("div", _hoisted_8$2, [
+                      vue.createElementVNode("span", {
+                        class: vue.normalizeClass(["font-normal block truncate uppercase", vue.unref(locale) === lang ? "font-semibold" : "font-normal"])
+                      }, vue.toDisplayString(lang), 3)
+                    ]),
+                    lang === vue.unref(locale) ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_9$1, _hoisted_11$1)) : vue.createCommentVNode("", true)
+                  ], 40, _hoisted_7$2);
+                }), 256))
+              ], 8, _hoisted_6$2)) : vue.createCommentVNode("", true)
+            ]),
+            _: 1
+          })
+        ]);
+      };
+    }
+  });
+  const _hoisted_1$1 = { class: "border-b border-b-$ud-border p-4 flex items-center" };
+  const _hoisted_2$1 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-close" }, null, -1);
+  const _hoisted_3$1 = [
+    _hoisted_2$1
+  ];
+  const _hoisted_4$1 = { class: "divide-y divide-$ud-border px-4 py-2" };
+  const _hoisted_5$1 = { class: "py-2 flex items-center justify-between space-x-4" };
+  const _hoisted_6$1 = { class: "flex flex-col w-4/5 overflow-hidden" };
+  const _hoisted_7$1 = { class: "text-sm font-medium" };
+  const _hoisted_8$1 = { class: "text-sm text-$ud-text-secondary text-xs" };
+  const _hoisted_9 = { class: "py-2 flex items-center justify-between space-x-4" };
+  const _hoisted_10 = { class: "flex flex-col w-4/5 overflow-hidden" };
+  const _hoisted_11 = { class: "text-sm font-medium" };
+  const _hoisted_12 = { class: "text-sm text-$ud-text-secondary text-xs" };
+  const _hoisted_13 = { class: "py-2 flex items-center justify-between space-x-4" };
+  const _hoisted_14 = { class: "flex flex-col w-4/5 overflow-hidden" };
+  const _hoisted_15 = { class: "text-sm font-medium" };
+  const _hoisted_16 = { class: "text-sm text-$ud-text-secondary text-xs" };
+  const _sfc_main$1 = /* @__PURE__ */ vue.defineComponent({
+    __name: "SettingsPanel",
+    props: {
+      show: { type: Boolean }
+    },
+    emits: ["update:show"],
+    setup(__props, { emit }) {
+      const dialog = vue.ref(null);
+      onClickOutside(dialog, () => {
+        emit("update:show", false);
+      });
+      const settings2 = useUserjsDiggerSettings();
+      const enable = useSessionStorage("ud_show", true);
+      const { t } = vueI18n.useI18n();
+      return (_ctx, _cache) => {
+        const _component_LocaleSelect = _sfc_main$2;
+        const _component_Toggle = _sfc_main$3;
+        return __props.show ? (vue.openBlock(), vue.createElementBlock("div", {
+          key: 0,
+          ref_key: "dialog",
+          ref: dialog,
+          class: "fixed left-1/2 -translate-x-1/2 top-1/3 w-100 shadow-md rounded bg-$ud-bg text-$ud-text"
+        }, [
+          vue.createElementVNode("div", _hoisted_1$1, [
+            vue.createElementVNode("div", null, vue.toDisplayString(vue.unref(t)("settings")), 1),
+            vue.createElementVNode("div", {
+              class: "ml-auto p-1 hover:bg-$ud-bg-hover rounded",
+              onClick: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("update:show", false))
+            }, _hoisted_3$1)
+          ]),
+          vue.createElementVNode("ul", _hoisted_4$1, [
+            vue.createElementVNode("li", _hoisted_5$1, [
+              vue.createElementVNode("div", _hoisted_6$1, [
+                vue.createElementVNode("p", _hoisted_7$1, vue.toDisplayString(vue.unref(t)("language")), 1),
+                vue.createElementVNode("p", _hoisted_8$1, vue.toDisplayString(vue.unref(t)("language-desc")), 1)
+              ]),
+              vue.createVNode(_component_LocaleSelect)
+            ]),
+            vue.createElementVNode("li", _hoisted_9, [
+              vue.createElementVNode("div", _hoisted_10, [
+                vue.createElementVNode("p", _hoisted_11, vue.toDisplayString(vue.unref(t)("enable")), 1),
+                vue.createElementVNode("p", _hoisted_12, vue.toDisplayString(vue.unref(t)("enable-desc")), 1)
+              ]),
+              vue.createVNode(_component_Toggle, {
+                modelValue: vue.unref(enable),
+                "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => vue.isRef(enable) ? enable.value = $event : null)
+              }, null, 8, ["modelValue"])
+            ]),
+            vue.createElementVNode("li", _hoisted_13, [
+              vue.createElementVNode("div", _hoisted_14, [
+                vue.createElementVNode("p", _hoisted_15, vue.toDisplayString(vue.unref(t)("nsfw")), 1),
+                vue.createElementVNode("p", _hoisted_16, vue.toDisplayString(vue.unref(t)("nsfw-desc")), 1)
+              ]),
+              vue.createVNode(_component_Toggle, {
+                modelValue: vue.unref(settings2).nsfw,
+                "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => vue.unref(settings2).nsfw = $event)
+              }, null, 8, ["modelValue"])
+            ])
+          ])
+        ], 512)) : vue.createCommentVNode("", true);
+      };
+    }
+  });
+  function useGreasyfork(site = "https://greasyfork.org", immediate = true) {
+    const host = psl.get(window.location.hostname);
+    const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
+    return useFetch(apiEndpoint, { fetch: _unsafeWindow.fetch, immediate }).json();
+  }
+  function useDataList() {
+    const settings2 = useUserjsDiggerSettings();
+    const { data: greasyfork } = useGreasyfork();
+    const { data: sleazyfork, execute } = useGreasyfork(
+      "https://sleazyfork.org",
+      false
+    );
+    vue.watch(
+      () => settings2.value.nsfw,
+      (val) => {
+        if (val) {
+          if (!sleazyfork.value)
+            execute();
+        }
+      },
+      { immediate: true }
+    );
+    const data = vue.computed(() => {
+      var _a2;
+      return ((_a2 = greasyfork.value) == null ? void 0 : _a2.concat(
+        settings2.value.nsfw ? sleazyfork.value ?? [] : []
+      )) ?? [];
+    });
+    return data;
+  }
+  const _hoisted_1 = { class: "p-2 text-sm truncate" };
+  const _hoisted_2 = { class: "rounded-full mx-1 px-2 py-0.25 text-xs bg-indigo-500 text-white" };
+  const _hoisted_3 = ["title"];
+  const _hoisted_4 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon:settings-adjust" }, null, -1);
+  const _hoisted_5 = [
+    _hoisted_4
+  ];
+  const _hoisted_6 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-close" }, null, -1);
+  const _hoisted_7 = [
+    _hoisted_6
+  ];
+  const _hoisted_8 = {
+    key: 0,
+    class: "h-60 overflow-y-auto"
+  };
+  const _sfc_main = /* @__PURE__ */ vue.defineComponent({
+    __name: "App",
+    setup(__props) {
+      const target = vue.ref(null);
+      const [collapse, toggleCollapse] = useToggle(false);
+      const container = useInjectContainer();
+      onClickOutside(
+        target,
+        (val) => {
+          if (val) {
+            toggleCollapse(false);
+            toggleShowTable(false);
+          }
+        },
+        { ignore: [container] }
+      );
+      const [showTable, toggleShowTable] = useToggle(false);
+      const data = useDataList();
+      const pagePsl = vue.computed(() => {
+        return psl.get(window.location.hostname);
+      });
+      const enable = useSessionStorage("ud_show", true);
+      const [settingShow, toggleSettingShow] = useToggle(false);
+      return (_ctx, _cache) => {
+        const _component_SettingsPanel = _sfc_main$1;
+        const _component_FloatActionButton = _sfc_main$4;
+        const _component_i18n_t = vue.resolveComponent("i18n-t");
+        const _component_DataTable = _sfc_main$5;
+        return vue.openBlock(), vue.createElementBlock(vue.Fragment, null, [
+          vue.createVNode(_component_SettingsPanel, {
+            show: vue.unref(settingShow),
+            "onUpdate:show": _cache[0] || (_cache[0] = ($event) => vue.isRef(settingShow) ? settingShow.value = $event : null)
+          }, null, 8, ["show"]),
+          vue.unref(enable) ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 0 }, [
+            vue.createVNode(_component_FloatActionButton, {
+              modelValue: vue.unref(collapse),
+              "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => vue.isRef(collapse) ? collapse.value = $event : null)
+            }, null, 8, ["modelValue"]),
+            vue.createElementVNode("div", {
+              ref_key: "target",
+              ref: target,
+              class: vue.normalizeClass([[vue.unref(collapse) ? "translate-x-0" : "translate-x-[calc(100%_+_1rem)]"], "fixed rounded-lg bg-$ud-bg text-$ud-text right-4 bottom-4 w-130 transition-all shadow-md divide-y divide-$ud-border-secondary"])
+            }, [
+              vue.createElementVNode("header", {
+                class: "w-full flex px-3 items-center select-none cursor-pointer",
+                onClick: _cache[4] || (_cache[4] = ($event) => vue.unref(toggleShowTable)())
+              }, [
+                vue.createElementVNode("div", null, [
+                  vue.createElementVNode("div", {
+                    class: vue.normalizeClass(["i-carbon-chevron-left", vue.unref(showTable) ? "-rotate-90" : "rotate-90"])
+                  }, null, 2)
+                ]),
+                vue.createElementVNode("span", _hoisted_1, [
+                  vue.createVNode(_component_i18n_t, { keypath: "tip" }, {
+                    count: vue.withCtx(() => {
+                      var _a2;
+                      return [
+                        vue.createElementVNode("span", _hoisted_2, vue.toDisplayString((_a2 = vue.unref(data)) == null ? void 0 : _a2.length), 1)
+                      ];
+                    }),
+                    host: vue.withCtx(() => [
+                      vue.createElementVNode("span", {
+                        title: vue.unref(pagePsl) ?? ""
+                      }, vue.toDisplayString(vue.unref(pagePsl)), 9, _hoisted_3)
+                    ]),
+                    _: 1
+                  })
+                ]),
+                vue.createElementVNode("div", {
+                  class: "ml-auto hover:bg-$ud-bg-hover rounded p-1",
+                  onClick: _cache[2] || (_cache[2] = vue.withModifiers(($event) => vue.unref(toggleSettingShow)(true), ["stop"]))
+                }, _hoisted_5),
+                vue.createElementVNode("div", {
+                  class: "hover:bg-$ud-bg-hover rounded p-1",
+                  onClick: _cache[3] || (_cache[3] = vue.withModifiers(($event) => vue.unref(toggleCollapse)(false), ["stop"]))
+                }, _hoisted_7)
+              ]),
+              vue.unref(showTable) ? (vue.openBlock(), vue.createElementBlock("section", _hoisted_8, [
+                vue.createVNode(_component_DataTable, {
+                  data: vue.unref(data) ?? []
+                }, null, 8, ["data"])
+              ])) : vue.createCommentVNode("", true)
+            ], 2)
+          ], 64)) : vue.createCommentVNode("", true)
+        ], 64);
+      };
+    }
+  });
+  const unocss = `/* layer: preflights */*,::before,::after{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}::backdrop{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}[data-v-app]{font-size:16px}:host{z-index:999999;position:relative}/* layer: icons */.i-carbon-caret-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8zM8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-down{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-up{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-checkmark{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m13 24l-9-9l1.414-1.414L13 21.171L26.586 7.586L28 9L13 24z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-left{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M10 16L20 6l1.4 1.4l-8.6 8.6l8.6 8.6L20 26z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-right{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M22 16L12 26l-1.4-1.4l8.6-8.6l-8.6-8.6L12 6z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m16 28l-7-7l1.41-1.41L16 25.17l5.59-5.58L23 21l-7 7zm0-24l7 7l-1.41 1.41L16 6.83l-5.59 5.58L9 11l7-7z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-close{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M24 9.4L22.6 8L16 14.6L9.4 8L8 9.4l6.6 6.6L8 22.6L9.4 24l6.6-6.6l6.6 6.6l1.4-1.4l-6.6-6.6L24 9.4z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-settings{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M27 16.76v-1.53l1.92-1.68A2 2 0 0 0 29.3 11l-2.36-4a2 2 0 0 0-1.73-1a2 2 0 0 0-.64.1l-2.43.82a11.35 11.35 0 0 0-1.31-.75l-.51-2.52a2 2 0 0 0-2-1.61h-4.68a2 2 0 0 0-2 1.61l-.51 2.52a11.48 11.48 0 0 0-1.32.75l-2.38-.86A2 2 0 0 0 6.79 6a2 2 0 0 0-1.73 1L2.7 11a2 2 0 0 0 .41 2.51L5 15.24v1.53l-1.89 1.68A2 2 0 0 0 2.7 21l2.36 4a2 2 0 0 0 1.73 1a2 2 0 0 0 .64-.1l2.43-.82a11.35 11.35 0 0 0 1.31.75l.51 2.52a2 2 0 0 0 2 1.61h4.72a2 2 0 0 0 2-1.61l.51-2.52a11.48 11.48 0 0 0 1.32-.75l2.42.82a2 2 0 0 0 .64.1a2 2 0 0 0 1.73-1l2.28-4a2 2 0 0 0-.41-2.51ZM25.21 24l-3.43-1.16a8.86 8.86 0 0 1-2.71 1.57L18.36 28h-4.72l-.71-3.55a9.36 9.36 0 0 1-2.7-1.57L6.79 24l-2.36-4l2.72-2.4a8.9 8.9 0 0 1 0-3.13L4.43 12l2.36-4l3.43 1.16a8.86 8.86 0 0 1 2.71-1.57L13.64 4h4.72l.71 3.55a9.36 9.36 0 0 1 2.7 1.57L25.21 8l2.36 4l-2.72 2.4a8.9 8.9 0 0 1 0 3.13L27.57 20Z'/%3E%3Cpath fill='currentColor' d='M16 22a6 6 0 1 1 6-6a5.94 5.94 0 0 1-6 6Zm0-10a3.91 3.91 0 0 0-4 4a3.91 3.91 0 0 0 4 4a3.91 3.91 0 0 0 4-4a3.91 3.91 0 0 0-4-4Z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon\\:settings-adjust{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M30 8h-4.1c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2h14.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30V8zm-9 4c-1.7 0-3-1.3-3-3s1.3-3 3-3s3 1.3 3 3s-1.3 3-3 3zM2 24h4.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30v-2H15.9c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2zm9-4c1.7 0 3 1.3 3 3s-1.3 3-3 3s-3-1.3-3-3s1.3-3 3-3z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}/* layer: shortcuts */.container{width:100%;}@media (min-width: 640px){.container{max-width:640px;}}@media (min-width: 768px){.container{max-width:768px;}}@media (min-width: 1024px){.container{max-width:1024px;}}@media (min-width: 1280px){.container{max-width:1280px;}}@media (min-width: 1536px){.container{max-width:1536px;}}/* layer: default */.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0;}.pointer-events-none{pointer-events:none;}.absolute{position:absolute;}.fixed{position:fixed;}.relative{position:relative;}.sticky{position:sticky;}.inset-y-0{top:0;bottom:0;}.bottom-4{bottom:16px;}.left-1\\/2{left:50%;}.right-0{right:0;}.right-4{right:16px;}.top-1\\/3{top:33.3333333333%;}.z-10{z-index:10;}.grid{display:grid;}.col-span-5{grid-column:span 5/span 5;}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr));}.mx-1{margin-left:4px;margin-right:4px;}.mx-2{margin-left:8px;margin-right:8px;}.ml-0\\.5{margin-left:2px;}.ml-auto{margin-left:auto;}.mt-1{margin-top:4px;}.block{display:block;}.inline-block{display:inline-block;}.h-3{height:12px;}.h-4{height:16px;}.h-60{height:240px;}.max-h-60{max-height:240px;}.max-w-60{max-width:240px;}.min-w-full{min-width:100%;}.w-100{width:400px;}.w-130{width:520px;}.w-20{width:80px;}.w-22{width:88px;}.w-3{width:12px;}.w-4{width:16px;}.w-4\\/5{width:80%;}.w-60{width:240px;}.w-9{width:36px;}.w-full{width:100%;}.flex{display:flex;}.inline-flex{display:inline-flex;}.flex-shrink-0{flex-shrink:0;}.flex-col{flex-direction:column;}.-translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(calc(100% + 16px) * -1);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-translate-x-1\\/2{--un-translate-x:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(100% + 16px);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-0{--un-translate-x:0;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-5{--un-translate-x:20px;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:-90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.transform{transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.cursor-default{cursor:default;}.cursor-pointer{cursor:pointer;}.select-none{user-select:none;}.items-center{align-items:center;}.justify-between{justify-content:space-between;}.gap-y-2{grid-row-gap:8px;row-gap:8px;}.space-x-4>:not([hidden])~:not([hidden]){--un-space-x-reverse:0;margin-left:calc(16px * calc(1 - var(--un-space-x-reverse)));margin-right:calc(16px * var(--un-space-x-reverse));}.divide-y>:not([hidden])~:not([hidden]){--un-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--un-divide-y-reverse)));border-bottom-width:calc(1px * var(--un-divide-y-reverse));border-top-style:solid;border-bottom-style:solid;}.divide-\\$ud-border-secondary>:not([hidden])~:not([hidden]){border-color:var(--ud-border-secondary);}.divide-\\$ud-border>:not([hidden])~:not([hidden]){border-color:var(--ud-border);}.overflow-auto{overflow:auto;}.overflow-hidden{overflow:hidden;}.overflow-y-auto{overflow-y:auto;}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.break-all{word-break:break-all;}.border{border-width:1px;}.border-2{border-width:2px;}.border-b{border-bottom-width:1px;}.border-gray-300{--un-border-opacity:1;border-color:rgba(209,213,219,var(--un-border-opacity));}.border-transparent{border-color:transparent;}.focus\\:border-indigo-500:focus{--un-border-opacity:1;border-color:rgba(99,102,241,var(--un-border-opacity));}.border-b-\\$ud-border{border-bottom-color:var(--ud-border);}.rounded{border-radius:4px;}.rounded-full{border-radius:9999px;}.rounded-lg{border-radius:8px;}.rounded-md{border-radius:6px;}.bg-\\$ud-bg{background-color:var(--ud-bg);}.bg-\\$ud-bg-secondary{background-color:var(--ud-bg-secondary);}.bg-gray-200{--un-bg-opacity:1;background-color:rgba(229,231,235,var(--un-bg-opacity));}.bg-indigo-500{--un-bg-opacity:1;background-color:rgba(99,102,241,var(--un-bg-opacity));}.bg-indigo-600,.focus\\:bg-indigo-600:focus,.hover\\:bg-indigo-600:hover{--un-bg-opacity:1;background-color:rgba(79,70,229,var(--un-bg-opacity));}.bg-white{--un-bg-opacity:1;background-color:rgba(255,255,255,var(--un-bg-opacity));}.hover\\:bg-\\$ud-bg-hover:hover{background-color:var(--ud-bg-hover);}.p-1{padding:4px;}.p-2{padding:8px;}.p-3{padding:12px;}.p-4{padding:16px;}.px-2{padding-left:8px;padding-right:8px;}.px-3{padding-left:12px;padding-right:12px;}.px-4{padding-left:16px;padding-right:16px;}.py-0\\.25{padding-top:1px;padding-bottom:1px;}.py-1{padding-top:4px;padding-bottom:4px;}.py-2{padding-top:8px;padding-bottom:8px;}.pl-3{padding-left:12px;}.pl-4{padding-left:16px;}.pr-10{padding-right:40px;}.pr-2{padding-right:8px;}.pr-3{padding-right:12px;}.pr-4{padding-right:16px;}.pr-9{padding-right:36px;}.text-center{text-align:center;}.text-left{text-align:left;}.text-right{text-align:right;}.align-middle{vertical-align:middle;}.text-base{font-size:16px;line-height:24px;}.text-sm{font-size:14px;line-height:20px;}.text-xs{font-size:12px;line-height:16px;}.font-medium{font-weight:500;}.font-normal{font-weight:400;}.font-semibold{font-weight:600;}.uppercase{text-transform:uppercase;}.focus\\:text-white:focus,.hover\\:text-white:hover,.text-white{--un-text-opacity:1;color:rgba(255,255,255,var(--un-text-opacity));}.group:focus .group-focus\\:text-\\$ud-text,.hover\\:text-\\$ud-text:hover,.text-\\$ud-text{color:var(--ud-text);}.hover\\:text-indigo-900:hover{--un-text-opacity:1;color:rgba(49,46,129,var(--un-text-opacity));}.text-\\$ud-text-secondary{color:var(--ud-text-secondary);}.text-indigo-600{--un-text-opacity:1;color:rgba(79,70,229,var(--un-text-opacity));}.underline{text-decoration-line:underline;}.underline-\\$ud-border{-webkit-text-decoration-color:var(--ud-border);text-decoration-color:var(--ud-border);}.opacity-0{opacity:0;}.opacity-100{opacity:1;}.shadow{--un-shadow:var(--un-shadow-inset) 0 1px 3px 0 var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 1px 2px -1px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-lg{--un-shadow:var(--un-shadow-inset) 0 10px 15px -3px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 4px 6px -4px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-md{--un-shadow:var(--un-shadow-inset) 0 4px 6px -1px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 2px 4px -2px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-sm{--un-shadow:var(--un-shadow-inset) 0 1px 2px 0 var(--un-shadow-color, rgba(0,0,0,0.05));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:outline-none:focus{outline:2px solid transparent;outline-offset:2px;}.focus\\:ring-1:focus,.ring-1{--un-ring-width:1px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:ring-2:focus{--un-ring-width:2px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.ring-0{--un-ring-width:0;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:ring-offset-2:focus{--un-ring-offset-width:2px;}.focus\\:ring-indigo-500:focus{--un-ring-opacity:1;--un-ring-color:rgba(99,102,241,var(--un-ring-opacity));}.ring-black{--un-ring-opacity:1;--un-ring-color:rgba(0,0,0,var(--un-ring-opacity));}.ring-opacity-5{--un-ring-opacity:0.05;}.transition{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-colors{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.duration-100{transition-duration:100ms;}.duration-200{transition-duration:200ms;}.ease-in{transition-timing-function:cubic-bezier(0.4, 0, 1, 1);}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}.ease-out{transition-timing-function:cubic-bezier(0, 0, 0.2, 1);}@media (min-width: 640px){.sm\\:text-sm{font-size:14px;line-height:20px;}}`;
+  const reset = '/*\nPlease read: https://github.com/antfu/unocss/blob/main/packages/reset/tailwind-compat.md\n*/\n\n/*\n1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)\n2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)\n*/\n\n*,\n::before,\n::after {\n  box-sizing: border-box; /* 1 */\n  border-width: 0; /* 2 */\n  border-style: solid; /* 2 */\n  border-color: #e5e7eb; /* 2 */\n}\n\n/*\n1. Use a consistent sensible line-height in all browsers.\n2. Prevent adjustments of font size after orientation changes in iOS.\n3. Use a more readable tab size.\n4. Use the user\'s configured `sans` font-family by default.\n*/\n\nhtml {\n  line-height: 1.5; /* 1 */\n  -webkit-text-size-adjust: 100%; /* 2 */\n  -moz-tab-size: 4; /* 3 */\n  tab-size: 4; /* 3 */\n  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; /* 4 */\n}\n\n/*\n1. Remove the margin in all browsers.\n2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.\n*/\n\nbody {\n  margin: 0; /* 1 */\n  line-height: inherit; /* 2 */\n}\n\n/*\n1. Add the correct height in Firefox.\n2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)\n3. Ensure horizontal rules are visible by default.\n*/\n\nhr {\n  height: 0; /* 1 */\n  color: inherit; /* 2 */\n  border-top-width: 1px; /* 3 */\n}\n\n/*\nAdd the correct text decoration in Chrome, Edge, and Safari.\n*/\n\nabbr:where([title]) {\n  text-decoration: underline dotted;\n}\n\n/*\nRemove the default font size and weight for headings.\n*/\n\nh1,\nh2,\nh3,\nh4,\nh5,\nh6 {\n  font-size: inherit;\n  font-weight: inherit;\n}\n\n/*\nReset links to optimize for opt-in styling instead of opt-out.\n*/\n\na {\n  color: inherit;\n  text-decoration: inherit;\n}\n\n/*\nAdd the correct font weight in Edge and Safari.\n*/\n\nb,\nstrong {\n  font-weight: bolder;\n}\n\n/*\n1. Use the user\'s configured `mono` font family by default.\n2. Correct the odd `em` font sizing in all browsers.\n*/\n\ncode,\nkbd,\nsamp,\npre {\n  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 1 */\n  font-size: 1em; /* 2 */\n}\n\n/*\nAdd the correct font size in all browsers.\n*/\n\nsmall {\n  font-size: 80%;\n}\n\n/*\nPrevent `sub` and `sup` elements from affecting the line height in all browsers.\n*/\n\nsub,\nsup {\n  font-size: 75%;\n  line-height: 0;\n  position: relative;\n  vertical-align: baseline;\n}\n\nsub {\n  bottom: -0.25em;\n}\n\nsup {\n  top: -0.5em;\n}\n\n/*\n1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)\n2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)\n3. Remove gaps between table borders by default.\n*/\n\ntable {\n  text-indent: 0; /* 1 */\n  border-color: inherit; /* 2 */\n  border-collapse: collapse; /* 3 */\n}\n\n/*\n1. Change the font styles in all browsers.\n2. Remove the margin in Firefox and Safari.\n3. Remove default padding in all browsers.\n*/\n\nbutton,\ninput,\noptgroup,\nselect,\ntextarea {\n  font-family: inherit; /* 1 */\n  font-size: 100%; /* 1 */\n  font-weight: inherit; /* 1 */\n  line-height: inherit; /* 1 */\n  color: inherit; /* 1 */\n  margin: 0; /* 2 */\n  padding: 0; /* 3 */\n}\n\n/*\nRemove the inheritance of text transform in Edge and Firefox.\n*/\n\nbutton,\nselect {\n  text-transform: none;\n}\n\n/*\n1. Correct the inability to style clickable types in iOS and Safari.\n2. Remove default button styles.\n*/\n\nbutton,\n[type=\'button\'],\n[type=\'reset\'],\n[type=\'submit\'] {\n  -webkit-appearance: button; /* 1 */\n  /*will affect the button style of most component libraries, so disable it*/\n  /*https://github.com/unocss/unocss/issues/2127*/\n  /*background-color: transparent; !* 2 *!*/\n  background-image: none; /* 2 */\n}\n\n/*\nUse the modern Firefox focus style for all focusable elements.\n*/\n\n:-moz-focusring {\n  outline: auto;\n}\n\n/*\nRemove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)\n*/\n\n:-moz-ui-invalid {\n  box-shadow: none;\n}\n\n/*\nAdd the correct vertical alignment in Chrome and Firefox.\n*/\n\nprogress {\n  vertical-align: baseline;\n}\n\n/*\nCorrect the cursor style of increment and decrement buttons in Safari.\n*/\n\n::-webkit-inner-spin-button,\n::-webkit-outer-spin-button {\n  height: auto;\n}\n\n/*\n1. Correct the odd appearance in Chrome and Safari.\n2. Correct the outline style in Safari.\n*/\n\n[type=\'search\'] {\n  -webkit-appearance: textfield; /* 1 */\n  outline-offset: -2px; /* 2 */\n}\n\n/*\nRemove the inner padding in Chrome and Safari on macOS.\n*/\n\n::-webkit-search-decoration {\n  -webkit-appearance: none;\n}\n\n/*\n1. Correct the inability to style clickable types in iOS and Safari.\n2. Change font properties to `inherit` in Safari.\n*/\n\n::-webkit-file-upload-button {\n  -webkit-appearance: button; /* 1 */\n  font: inherit; /* 2 */\n}\n\n/*\nAdd the correct display in Chrome and Safari.\n*/\n\nsummary {\n  display: list-item;\n}\n\n/*\nRemoves the default spacing and border for appropriate elements.\n*/\n\nblockquote,\ndl,\ndd,\nh1,\nh2,\nh3,\nh4,\nh5,\nh6,\nhr,\nfigure,\np,\npre {\n  margin: 0;\n}\n\nfieldset {\n  margin: 0;\n  padding: 0;\n}\n\nlegend {\n  padding: 0;\n}\n\nol,\nul,\nmenu {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n/*\nPrevent resizing textareas horizontally by default.\n*/\n\ntextarea {\n  resize: vertical;\n}\n\n/*\n1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)\n2. Set the default placeholder color to the user\'s configured gray 400 color.\n*/\n\ninput::placeholder,\ntextarea::placeholder {\n  opacity: 1; /* 1 */\n  color: #9ca3af; /* 2 */\n}\n\n/*\nSet the default cursor for buttons.\n*/\n\nbutton,\n[role="button"] {\n  cursor: pointer;\n}\n\n/*\nMake sure disabled buttons don\'t get the pointer cursor.\n*/\n:disabled {\n  cursor: default;\n}\n\n/*\n1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)\n2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)\n   This can trigger a poorly considered lint error in some tools but is included by design.\n*/\n\nimg,\nsvg,\nvideo,\ncanvas,\naudio,\niframe,\nembed,\nobject {\n  display: block; /* 1 */\n  vertical-align: middle; /* 2 */\n}\n\n/*\nConstrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)\n*/\n\nimg,\nvideo {\n  max-width: 100%;\n  height: auto;\n}\n\n/* Make elements with the HTML hidden attribute stay hidden by default */\n[hidden] {\n  display: none;\n}\n\n';
+  const zh = {
+    "tip": (ctx) => {
+      const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+      return _normalize(["发现", _interpolate(_named("count")), "个脚本适用于当前网站 ", _interpolate(_named("host"))]);
+    },
+    "table": {
+      "toggle-expand": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["展开更多"]);
+      },
+      "title": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["脚本标题"]);
+      },
+      "daily": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["日安装量"]);
+      },
+      "update": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["更新时间"]);
+      },
+      "install": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["安装"]);
+      },
+      "version": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["版本"]);
+      },
+      "score": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["评分"]);
+      },
+      "total-installs": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["总安装量"]);
+      },
+      "authors": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["作者"]);
+      },
+      "description": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["脚本描述"]);
+      },
+      "empty": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["这个网站没有适用的脚本"]);
+      }
+    },
+    "settings": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["设置"]);
+    },
+    "language": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["语言"]);
+    },
+    "language-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["切换用户语言设置"]);
+    },
+    "enable": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["本页启用"]);
+    },
+    "enable-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["控制本页面是否启用功能(会话)"]);
+    },
+    "nsfw": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["成人内容"]);
+    },
+    "nsfw-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["列表中展示Sleazyfork的搜索结果"]);
+    },
+    "time-ago": {
+      "just-now": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["就在刚刚"]);
+      },
+      "past": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), "前"]);
+      },
+      "future": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), "后"]);
+      },
+      "month": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["上个月"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["下个月"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+          return _normalize([_interpolate(_named("n")), "个月"]);
+        }
+      },
+      "year": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["去年"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["明年"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+          return _normalize([_interpolate(_named("n")), "年"]);
+        }
+      },
+      "day": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["昨天"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["明天"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+          return _normalize([_interpolate(_named("n")), "天"]);
+        }
+      },
+      "week": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["上周"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["下周"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+          return _normalize([_interpolate(_named("n")), "周"]);
+        }
+      },
+      "hour": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), "小时"]);
+      },
+      "minute": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), "分钟"]);
+      },
+      "second": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), "秒"]);
+      },
+      "invalid": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["无效"]);
+      }
+    }
+  };
+  const en = {
+    "tip": (ctx) => {
+      const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+      return _normalize(["Found ", _interpolate(_named("count")), " user scripts for the ", _interpolate(_named("host"))]);
+    },
+    "table": {
+      "toggle-expand": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Toggle expand"]);
+      },
+      "title": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Title"]);
+      },
+      "daily": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Daily"]);
+      },
+      "update": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Update"]);
+      },
+      "install": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Install"]);
+      },
+      "version": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Version"]);
+      },
+      "score": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Score"]);
+      },
+      "total-installs": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Total installs"]);
+      },
+      "authors": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Author(s)"]);
+      },
+      "description": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["Description"]);
+      },
+      "empty": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["There has no Userjs for this site"]);
+      }
+    },
+    "settings": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["Settings"]);
+    },
+    "language": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["Language"]);
+    },
+    "language-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["Switch language"]);
+    },
+    "enable": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["Enable on this page"]);
+    },
+    "enable-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["To enable this plugin on this page or not (Session)"]);
+    },
+    "nsfw": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["NSFW"]);
+    },
+    "nsfw-desc": (ctx) => {
+      const { normalize: _normalize } = ctx;
+      return _normalize(["Show Sleazyfork's result in list"]);
+    },
+    "time-ago": {
+      "just-now": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize(["just now"]);
+      },
+      "past": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize([_interpolate(_named("n")), " ago"]);
+      },
+      "future": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named } = ctx;
+        return _normalize(["in ", _interpolate(_named("n"))]);
+      },
+      "month": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["last month"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["next month"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+          return _plural([_normalize([_interpolate(_named("n")), " month"]), _normalize([_interpolate(_named("n")), " months"])]);
+        }
+      },
+      "year": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["last year"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["next year"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+          return _plural([_normalize([_interpolate(_named("n")), " year"]), _normalize([_interpolate(_named("n")), " years"])]);
+        }
+      },
+      "day": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["yesterday"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["tomorrow"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+          return _plural([_normalize([_interpolate(_named("n")), " day"]), _normalize([_interpolate(_named("n")), " days"])]);
+        }
+      },
+      "week": {
+        "past": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["last week"]);
+        },
+        "future": (ctx) => {
+          const { normalize: _normalize } = ctx;
+          return _normalize(["next week"]);
+        },
+        "n": (ctx) => {
+          const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+          return _plural([_normalize([_interpolate(_named("n")), " week"]), _normalize([_interpolate(_named("n")), " weeks"])]);
+        }
+      },
+      "hour": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+        return _plural([_normalize([_interpolate(_named("n")), " hour"]), _normalize([_interpolate(_named("n")), " hours"])]);
+      },
+      "minute": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+        return _plural([_normalize([_interpolate(_named("n")), " minute"]), _normalize([_interpolate(_named("n")), " minutes"])]);
+      },
+      "second": (ctx) => {
+        const { normalize: _normalize, interpolate: _interpolate, named: _named, plural: _plural } = ctx;
+        return _plural([_normalize([_interpolate(_named("n")), " second"]), _normalize([_interpolate(_named("n")), " seconds"])]);
+      },
+      "invalid": (ctx) => {
+        const { normalize: _normalize } = ctx;
+        return _normalize([]);
+      }
+    }
+  };
+  const settings = useUserjsDiggerSettings();
+  const i18n = vueI18n.createI18n({
+    legacy: false,
+    locale: settings.value.locale,
+    fallbackLocale: "en",
+    messages: { zh, en }
+  });
+  if (!HTMLElement.prototype.attachShadow) {
+    console.log("shadow-dom doesn't support in current website, load polyfill");
+    useScriptTag("https://unpkg.com/attachshadow@0.3.0/min.js", () => {
+      initUserjsDigger(Element.prototype.attachShadow);
+    });
+  } else {
+    initUserjsDigger();
+  }
+  function initUserjsDigger(attachShadow = HTMLElement.prototype.attachShadow) {
+    customElements.define(
+      "userjs-digger",
+      class extends HTMLElement {
+        constructor() {
+          super();
+          __publicField(this, "app");
+          const app = document.createElement("div");
+          const style2 = document.createElement("style");
+          style2.innerHTML = `${reset}${unocss}`;
+          const shadow = attachShadow.call(this, { mode: "open" });
+          shadow.appendChild(style2);
+          shadow.appendChild(app);
+          this.app = vue.createApp(_sfc_main);
+          this.app.use(i18n);
+          this.app.provide("container", app);
+          this.app.mount(app);
+        }
+      }
+    );
+    const userDigger = document.createElement("userjs-digger");
+    document.body.append(userDigger);
+  }
+
+})(Vue, VueI18n, psl);
