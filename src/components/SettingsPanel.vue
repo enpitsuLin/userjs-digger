@@ -96,8 +96,10 @@
 
   const inputVal = ref('');
   const onFilterAdd = () => {
-    settings.value.filter.push(inputVal.value);
-    inputVal.value = '';
+    if (inputVal.value !== '') {
+      settings.value.filter.push(inputVal.value);
+      inputVal.value = '';
+    }
   };
   const onFilterBack = useThrottleFn(() => {
     if (settings.value.filter.length > 0 && inputVal.value === '')
