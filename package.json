@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "types-check": "vue-tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@vueuse/core": "10.0.0-beta.1",
