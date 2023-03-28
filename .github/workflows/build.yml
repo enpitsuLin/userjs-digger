@@ -42,7 +42,7 @@ jobs:
             ${{ runner.os }}
 
       - name: install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install
 
       - name: Build script
         run: pnpm build
