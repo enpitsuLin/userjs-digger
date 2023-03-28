@@ -1,3 +1,4 @@
+import { AfterFetchContext, MaybeRef, UseFetchOptions } from '@vueuse/core';
 import psl from 'psl';
 
 export type GreasyforkScriptUser = {
@@ -36,10 +37,40 @@ export function useGreasyfork(
   immediate = true
 ) {
   const host = psl.get(window.location.hostname);
-  const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
-  return useFetch(apiEndpoint, { fetch: unsafeWindow.fetch, immediate }).json<
-    GreasyforkScript[]
-  >();
+  const apiEndpoint = `${site}/scripts/by-site/${host}.json`;
+  const fetch = unsafeWindow.fetch;
+  const afterFetch = async ({
+    data: prevData,
+    response
+  }: AfterFetchContext<GreasyforkScript[]>): Promise<
+    Partial<AfterFetchContext<GreasyforkScript[]>>
+  > => {
+    if (prevData?.length === 50) {
+      const prevPage =
+        Number(new URL(response.url).searchParams.get('page')) || 1;
+      const nextPage = `${apiEndpoint}?page=${prevPage + 1}`;
+      const { data, execute } = useFetch(nextPage, {
+        fetch,
+        immediate: false,
+        afterFetch
+      }).json<GreasyforkScript[]>();
+      await execute();
+
+      return {
+        response: new Response(),
+        data: prevData?.concat(
+          data.value?.filter((i) => !!prevData.find((li) => i.id !== li.id)) ??
+            []
+        )
+      };
+    }
+    return { data: prevData };
+  };
+  return useFetch(apiEndpoint, {
+    fetch,
+    immediate,
+    afterFetch
+  }).json<GreasyforkScript[]>();
 }
 
 export function useDataList() {
