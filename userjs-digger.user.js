@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.2.1
+// @version      0.3.0
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
@@ -2124,8 +2124,36 @@
   });
   function useGreasyfork(site = "https://greasyfork.org", immediate = true) {
     const host = psl.get(window.location.hostname);
-    const apiEndpoint = `${site}/en/scripts/by-site/${host}.json`;
-    return useFetch(apiEndpoint, { fetch: _unsafeWindow.fetch, immediate }).json();
+    const apiEndpoint = `${site}/scripts/by-site/${host}.json`;
+    const fetch = _unsafeWindow.fetch;
+    const afterFetch = async ({
+      data: prevData,
+      response
+    }) => {
+      var _a2;
+      if ((prevData == null ? void 0 : prevData.length) === 50) {
+        const prevPage = Number(new URL(response.url).searchParams.get("page")) || 1;
+        const nextPage = `${apiEndpoint}?page=${prevPage + 1}`;
+        const { data, execute } = useFetch(nextPage, {
+          fetch,
+          immediate: false,
+          afterFetch
+        }).json();
+        await execute();
+        return {
+          response: new Response(),
+          data: prevData == null ? void 0 : prevData.concat(
+            ((_a2 = data.value) == null ? void 0 : _a2.filter((i) => !!prevData.find((li) => i.id !== li.id))) ?? []
+          )
+        };
+      }
+      return { data: prevData };
+    };
+    return useFetch(apiEndpoint, {
+      fetch,
+      immediate,
+      afterFetch
+    }).json();
   }
   function useDataList() {
     const settings2 = useUserjsDiggerSettings();
