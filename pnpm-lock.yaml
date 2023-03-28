@@ -12,6 +12,7 @@ specifiers:
   '@vitejs/plugin-vue': ^4.1.0
   '@vue/runtime-core': ^3.2.47
   '@vueuse/core': 10.0.0-beta.1
+  husky: ^8.0.3
   npm-run-all: ^4.1.5
   psl: ^1.9.0
   punycode: ^2.3.0
@@ -44,6 +45,7 @@ devDependencies:
   '@unocss/preset-rem-to-px': 0.50.6
   '@vitejs/plugin-vue': 4.1.0_vite@4.2.1+vue@3.2.47
   '@vue/runtime-core': 3.2.47
+  husky: 8.0.3
   npm-run-all: 4.1.5
   typescript: 5.0.2
   unocss: 0.50.6_vite@4.2.1
@@ -1926,6 +1928,12 @@ packages:
   /human-signals/2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
+    dev: true
+
+  /husky/8.0.3:
+    resolution: {integrity: sha512-+dQSyqPh4x1hlO1swXBiNb2HzTDN1I2IGLQx1GrBuiqFJfoMrnZWwVmatvSiO+Iz8fBUnf+lekwNo4c2LlXItg==}
+    engines: {node: '>=14'}
+    hasBin: true
     dev: true
 
   /import-fresh/3.3.0:
