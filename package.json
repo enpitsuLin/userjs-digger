@@ -3,7 +3,7 @@
   "description": "Show all userjs available in current site",
   "author": "enpitsulin <enpitsulin@gmail.com>",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
