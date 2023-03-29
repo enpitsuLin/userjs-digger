@@ -1,6 +1,8 @@
 <template>
   <div class="inline-block min-w-full align-middle">
-    <div class="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
+    <div
+      class="relative overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5"
+    >
       <table class="min-w-full divide-y divide-$ud-border-secondary">
         <thead class="bg-$ud-bg-secondary select-none">
           <tr style="table-layout: fixed" class="table">
@@ -51,7 +53,36 @@
           class="h-60 overflow-y-overlay block divide-y divide-$ud-border w-full bg-$ud-bg"
         >
           <div v-bind="wrapperProps">
-            <template v-for="item of list" :key="item.index">
+            <template v-if="loading">
+              <div class="flex items-center justify-center py-10">
+                <svg
+                  class="animate-spin w-10 h-10 text-indigo-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              </div>
+            </template>
+            <template v-else-if="data.length === 0">
+              <div class="p-3 text-center text-sm">
+                {{ t('table.empty') }}
+              </div>
+            </template>
+            <template v-else v-for="item of list" :key="item.index">
               <tr class="table w-full">
                 <td
                   class="w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer"
@@ -135,12 +166,6 @@
           </div>
         </tbody>
       </table>
-
-      <template v-if="data.length === 0">
-        <div class="p-3 text-center text-sm">
-          {{ t('table.empty') }}
-        </div>
-      </template>
     </div>
   </div>
 </template>
@@ -149,7 +174,7 @@
   import { formatTimeAgo, UseTimeAgoUnitNamesDefault } from '@vueuse/core';
   import { GreasyforkScript } from '../composables/data';
 
-  const props = defineProps<{ data: GreasyforkScript[] }>();
+  const props = defineProps<{ data: GreasyforkScript[]; loading: boolean }>();
   const expanded = ref<boolean[]>([]);
 
   watchArray(

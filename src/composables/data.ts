@@ -75,11 +75,12 @@ export function useGreasyfork(
 
 export function useDataList() {
   const settings = useUserjsDiggerSettings();
-  const { data: greasyfork } = useGreasyfork();
-  const { data: sleazyfork, execute } = useGreasyfork(
-    'https://sleazyfork.org',
-    false
-  );
+  const { data: greasyfork, isFetching } = useGreasyfork();
+  const {
+    data: sleazyfork,
+    execute,
+    isFetching: isSleazyforkFetching
+  } = useGreasyfork('https://sleazyfork.org', false);
   watch(
     () => settings.value.nsfw,
     (val) => {
@@ -100,5 +101,11 @@ export function useDataList() {
     );
   });
 
-  return data;
+  const isLoading = computed(() => {
+    if (settings.value.nsfw)
+      return isFetching.value && isSleazyforkFetching.value;
+    return isFetching.value;
+  });
+
+  return { data, isLoading };
 }

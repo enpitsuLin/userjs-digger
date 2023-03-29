@@ -19,7 +19,7 @@
   );
 
   const [showTable, toggleShowTable] = useToggle(false);
-  const data = useDataList();
+  const { data, isLoading } = useDataList();
 
   const pagePsl = computed(() => {
     return psl.get(window.location.hostname);
@@ -52,6 +52,7 @@
           <i18n-t keypath="tip">
             <template #count>
               <span
+                :class="isLoading && 'animate-pulse text-transparent'"
                 class="rounded-full mx-1 px-2 py-0.25 text-xs bg-indigo-500 text-white"
               >
                 {{ data?.length }}
@@ -78,7 +79,7 @@
         </div>
       </header>
       <section v-if="showTable">
-        <DataTable :data="data ?? []" />
+        <DataTable :data="data ?? []" :loading="isLoading" />
       </section>
     </div>
   </template>
