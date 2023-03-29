@@ -77,7 +77,7 @@
           <div class="i-carbon-close"></div>
         </div>
       </header>
-      <section v-if="showTable" class="h-60 overflow-y-auto">
+      <section v-if="showTable">
         <DataTable :data="data ?? []" />
       </section>
     </div>

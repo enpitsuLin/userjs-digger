@@ -2,9 +2,9 @@
   <div class="inline-block min-w-full align-middle">
     <div class="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
       <table class="min-w-full divide-y divide-$ud-border-secondary">
-        <thead class="bg-$ud-bg-secondary sticky select-none">
-          <tr>
-            <th scope="col" class="relative p-2">
+        <thead class="bg-$ud-bg-secondary select-none">
+          <tr style="table-layout: fixed" class="table">
+            <th scope="col" class="w-8 relative p-2">
               <span class="sr-only">{{ t('table.toggle-expand') }}</span>
             </th>
             <th
@@ -46,82 +46,93 @@
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-$ud-border bg-$ud-bg">
-          <template v-for="(item, i) of sortedData" :key="item.id">
-            <tr>
-              <td
-                class="relative truncate p-2 text-right text-xs font-medium cursor-pointer"
-                @click="toggleExpand(i)"
-              >
-                <div
-                  class="i-carbon-chevron-right"
-                  :class="expanded[i] && 'rotate-90'"
-                ></div>
-              </td>
-              <td
-                :title="item.name"
-                class="break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
-              >
-                <a :href="item.url" target="_blank">{{ item.name }}</a>
-              </td>
-              <td
-                class="break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
-              >
-                {{ item.daily_installs }}
-              </td>
-              <td
-                class="break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
-              >
-                {{ formatTimeAgoWithI18n(new Date(item.code_updated_at)) }}
-              </td>
-              <td
-                class="relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium"
-              >
-                <a
-                  :href="item.code_url"
-                  target="_blank"
-                  class="text-indigo-600 hover:text-indigo-900"
+        <tbody
+          v-bind="containerProps"
+          class="h-60 overflow-y-overlay block divide-y divide-$ud-border w-full bg-$ud-bg"
+        >
+          <div v-bind="wrapperProps">
+            <template v-for="item of list" :key="item.index">
+              <tr class="table w-full">
+                <td
+                  class="w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer"
+                  @click="toggleExpand(item.index)"
                 >
-                  {{ t('table.install') }}
-                  <span class="sr-only">, {{ item.name }}</span>
-                </a>
-              </td>
-            </tr>
-            <tr v-if="expanded[i]">
-              <td colspan="5" class="py-2">
-                <div class="mx-2">
-                  <dl class="text-xs grid grid-cols-6 gap-y-2">
-                    <dt class="font-semibold">{{ t('table.version') }}</dt>
-                    <dd class="text-$ud-text">{{ item.version }}</dd>
-                    <dt class="font-semibold">{{ t('table.score') }}</dt>
-                    <dd class="text-$ud-text">{{ item.fan_score }}</dd>
-                    <dt class="font-semibold">
-                      {{ t('table.total-installs') }}
-                    </dt>
-                    <dd class="text-$ud-text">
-                      {{ item.total_installs.toLocaleString() }}
-                    </dd>
-                    <dt class="font-semibold">{{ t('table.authors') }}</dt>
-                    <dd class="col-span-5 text-$ud-text">
-                      <a
-                        v-for="user in item.users"
-                        :key="user.id"
-                        :href="user.url"
-                        target="_blank"
-                        class="underline underline-$ud-border"
-                      >
-                        {{ user.name }}
-                      </a>
-                    </dd>
-                    <dt class="font-semibold">{{ t('table.description') }}</dt>
-                    <dd class="col-span-5 text-$ud-text">
-                      {{ item.description }}
-                    </dd>
-                  </dl>
-                </div>
-              </td>
-            </tr>
-          </template>
+                  <div
+                    class="i-carbon-chevron-right"
+                    :class="expanded[item.index] && 'rotate-90'"
+                  ></div>
+                </td>
+                <td
+                  :title="item.data.name"
+                  class="w-60 break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
+                >
+                  <a :href="item.data.url" target="_blank">
+                    {{ item.data.name }}
+                  </a>
+                </td>
+                <td
+                  class="w-20 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
+                >
+                  {{ item.data.daily_installs }}
+                </td>
+                <td
+                  class="w-22 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
+                >
+                  {{
+                    formatTimeAgoWithI18n(new Date(item.data.code_updated_at))
+                  }}
+                </td>
+                <td
+                  class="relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium"
+                >
+                  <a
+                    :href="item.data.code_url"
+                    target="_blank"
+                    class="text-indigo-600 hover:text-indigo-900"
+                  >
+                    {{ t('table.install') }}
+                    <span class="sr-only">, {{ item.data.name }}</span>
+                  </a>
+                </td>
+              </tr>
+              <tr class="table w-full" v-if="expanded[item.index]">
+                <td colspan="5" class="py-2">
+                  <div class="mx-2">
+                    <dl class="text-xs grid grid-cols-6 gap-y-2">
+                      <dt class="font-semibold">{{ t('table.version') }}</dt>
+                      <dd class="text-$ud-text">{{ item.data.version }}</dd>
+                      <dt class="font-semibold">{{ t('table.score') }}</dt>
+                      <dd class="text-$ud-text">{{ item.data.fan_score }}</dd>
+                      <dt class="font-semibold">
+                        {{ t('table.total-installs') }}
+                      </dt>
+                      <dd class="text-$ud-text">
+                        {{ item.data.total_installs.toLocaleString() }}
+                      </dd>
+                      <dt class="font-semibold">{{ t('table.authors') }}</dt>
+                      <dd class="col-span-5 text-$ud-text">
+                        <a
+                          v-for="user in item.data.users"
+                          :key="user.id"
+                          :href="user.url"
+                          target="_blank"
+                          class="underline underline-$ud-border"
+                        >
+                          {{ user.name }}
+                        </a>
+                      </dd>
+                      <dt class="font-semibold">
+                        {{ t('table.description') }}
+                      </dt>
+                      <dd class="col-span-5 text-$ud-text">
+                        {{ item.data.description }}
+                      </dd>
+                    </dl>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </div>
         </tbody>
       </table>
 
@@ -168,6 +179,13 @@
       return b.daily_installs - a.daily_installs;
     }
   );
+
+  const { list, containerProps, wrapperProps } = useVirtualList(sortedData, {
+    itemHeight: (index) => {
+      if (expanded.value[index]) return 112;
+      else return 32;
+    }
+  });
 
   const sortIcon = (sort: '' | 'desc' | 'asc') => {
     if (sort === '') return 'i-carbon-caret-sort';
