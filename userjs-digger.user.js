@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.3.0
+// @version      0.4.0
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
@@ -1013,6 +1013,43 @@
       update
     };
   }
+  function useElementSize(target, initialSize = { width: 0, height: 0 }, options = {}) {
+    const { window: window2 = defaultWindow, box = "content-box" } = options;
+    const isSVG = vue.computed(() => {
+      var _a2, _b;
+      return (_b = (_a2 = unrefElement(target)) == null ? void 0 : _a2.namespaceURI) == null ? void 0 : _b.includes("svg");
+    });
+    const width = vue.ref(initialSize.width);
+    const height = vue.ref(initialSize.height);
+    useResizeObserver(target, ([entry]) => {
+      const boxSize = box === "border-box" ? entry.borderBoxSize : box === "content-box" ? entry.contentBoxSize : entry.devicePixelContentBoxSize;
+      if (window2 && isSVG.value) {
+        const $elem = unrefElement(target);
+        if ($elem) {
+          const styles = window2.getComputedStyle($elem);
+          width.value = parseFloat(styles.width);
+          height.value = parseFloat(styles.height);
+        }
+      } else {
+        if (boxSize) {
+          const formatBoxSize = Array.isArray(boxSize) ? boxSize : [boxSize];
+          width.value = formatBoxSize.reduce((acc, { inlineSize }) => acc + inlineSize, 0);
+          height.value = formatBoxSize.reduce((acc, { blockSize }) => acc + blockSize, 0);
+        } else {
+          width.value = entry.contentRect.width;
+          height.value = entry.contentRect.height;
+        }
+      }
+    }, options);
+    vue.watch(() => unrefElement(target), (ele) => {
+      width.value = ele ? initialSize.width : 0;
+      height.value = ele ? initialSize.height : 0;
+    });
+    return {
+      width,
+      height
+    };
+  }
   var __defProp$d = Object.defineProperty;
   var __defProps$4 = Object.defineProperties;
   var __getOwnPropDescs$4 = Object.getOwnPropertyDescriptors;
@@ -1433,6 +1470,179 @@
     }
     return messages.invalid;
   }
+  function useVirtualList(list, options) {
+    const { containerStyle, wrapperProps, scrollTo, calculateRange, currentList, containerRef } = "itemHeight" in options ? useVerticalVirtualList(options, list) : useHorizontalVirtualList(options, list);
+    return {
+      list: currentList,
+      scrollTo,
+      containerProps: {
+        ref: containerRef,
+        onScroll: () => {
+          calculateRange();
+        },
+        style: containerStyle
+      },
+      wrapperProps
+    };
+  }
+  function useVirtualListResources(list) {
+    const containerRef = vue.ref(null);
+    const size = useElementSize(containerRef);
+    const currentList = vue.ref([]);
+    const source = vue.shallowRef(list);
+    const state = vue.ref({ start: 0, end: 10 });
+    return { state, source, currentList, size, containerRef };
+  }
+  function createGetViewCapacity(state, source, itemSize) {
+    return (containerSize) => {
+      if (typeof itemSize === "number")
+        return Math.ceil(containerSize / itemSize);
+      const { start = 0 } = state.value;
+      let sum = 0;
+      let capacity = 0;
+      for (let i = start; i < source.value.length; i++) {
+        const size = itemSize(i);
+        sum += size;
+        capacity = i;
+        if (sum > containerSize)
+          break;
+      }
+      return capacity - start;
+    };
+  }
+  function createGetOffset(source, itemSize) {
+    return (scrollDirection) => {
+      if (typeof itemSize === "number")
+        return Math.floor(scrollDirection / itemSize) + 1;
+      let sum = 0;
+      let offset = 0;
+      for (let i = 0; i < source.value.length; i++) {
+        const size = itemSize(i);
+        sum += size;
+        if (sum >= scrollDirection) {
+          offset = i;
+          break;
+        }
+      }
+      return offset + 1;
+    };
+  }
+  function createCalculateRange(type, overscan, getOffset, getViewCapacity, { containerRef, state, currentList, source }) {
+    return () => {
+      const element = containerRef.value;
+      if (element) {
+        const offset = getOffset(type === "vertical" ? element.scrollTop : element.scrollLeft);
+        const viewCapacity = getViewCapacity(type === "vertical" ? element.clientHeight : element.clientWidth);
+        const from = offset - overscan;
+        const to = offset + viewCapacity + overscan;
+        state.value = {
+          start: from < 0 ? 0 : from,
+          end: to > source.value.length ? source.value.length : to
+        };
+        currentList.value = source.value.slice(state.value.start, state.value.end).map((ele, index) => ({
+          data: ele,
+          index: index + state.value.start
+        }));
+      }
+    };
+  }
+  function createGetDistance(itemSize, source) {
+    return (index) => {
+      if (typeof itemSize === "number") {
+        const size2 = index * itemSize;
+        return size2;
+      }
+      const size = source.value.slice(0, index).reduce((sum, _, i) => sum + itemSize(i), 0);
+      return size;
+    };
+  }
+  function useWatchForSizes(size, list, calculateRange) {
+    vue.watch([size.width, size.height, list], () => {
+      calculateRange();
+    });
+  }
+  function createComputedTotalSize(itemSize, source) {
+    return vue.computed(() => {
+      if (typeof itemSize === "number")
+        return source.value.length * itemSize;
+      return source.value.reduce((sum, _, index) => sum + itemSize(index), 0);
+    });
+  }
+  const scrollToDictionaryForElementScrollKey = {
+    horizontal: "scrollLeft",
+    vertical: "scrollTop"
+  };
+  function createScrollTo(type, calculateRange, getDistance, containerRef) {
+    return (index) => {
+      if (containerRef.value) {
+        containerRef.value[scrollToDictionaryForElementScrollKey[type]] = getDistance(index);
+        calculateRange();
+      }
+    };
+  }
+  function useHorizontalVirtualList(options, list) {
+    const resources = useVirtualListResources(list);
+    const { state, source, currentList, size, containerRef } = resources;
+    const containerStyle = { overflowX: "auto" };
+    const { itemWidth, overscan = 5 } = options;
+    const getViewCapacity = createGetViewCapacity(state, source, itemWidth);
+    const getOffset = createGetOffset(source, itemWidth);
+    const calculateRange = createCalculateRange("horizontal", overscan, getOffset, getViewCapacity, resources);
+    const getDistanceLeft = createGetDistance(itemWidth, source);
+    const offsetLeft = vue.computed(() => getDistanceLeft(state.value.start));
+    const totalWidth = createComputedTotalSize(itemWidth, source);
+    useWatchForSizes(size, list, calculateRange);
+    const scrollTo = createScrollTo("horizontal", calculateRange, getDistanceLeft, containerRef);
+    const wrapperProps = vue.computed(() => {
+      return {
+        style: {
+          height: "100%",
+          width: `${totalWidth.value - offsetLeft.value}px`,
+          marginLeft: `${offsetLeft.value}px`,
+          display: "flex"
+        }
+      };
+    });
+    return {
+      scrollTo,
+      calculateRange,
+      wrapperProps,
+      containerStyle,
+      currentList,
+      containerRef
+    };
+  }
+  function useVerticalVirtualList(options, list) {
+    const resources = useVirtualListResources(list);
+    const { state, source, currentList, size, containerRef } = resources;
+    const containerStyle = { overflowY: "auto" };
+    const { itemHeight, overscan = 5 } = options;
+    const getViewCapacity = createGetViewCapacity(state, source, itemHeight);
+    const getOffset = createGetOffset(source, itemHeight);
+    const calculateRange = createCalculateRange("vertical", overscan, getOffset, getViewCapacity, resources);
+    const getDistanceTop = createGetDistance(itemHeight, source);
+    const offsetTop = vue.computed(() => getDistanceTop(state.value.start));
+    const totalHeight = createComputedTotalSize(itemHeight, source);
+    useWatchForSizes(size, list, calculateRange);
+    const scrollTo = createScrollTo("vertical", calculateRange, getDistanceTop, containerRef);
+    const wrapperProps = vue.computed(() => {
+      return {
+        style: {
+          width: "100%",
+          height: `${totalHeight.value - offsetTop.value}px`,
+          marginTop: `${offsetTop.value}px`
+        }
+      };
+    });
+    return {
+      calculateRange,
+      scrollTo,
+      containerStyle,
+      wrapperProps,
+      currentList,
+      containerRef
+    };
+  }
   function useWindowSize(options = {}) {
     const {
       window: window2 = defaultWindow,
@@ -1462,62 +1672,97 @@
     return { width, height };
   }
   const _hoisted_1$6 = { class: "inline-block min-w-full align-middle" };
-  const _hoisted_2$5 = { class: "overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5" };
+  const _hoisted_2$5 = { class: "relative overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5" };
   const _hoisted_3$4 = { class: "min-w-full divide-y divide-$ud-border-secondary" };
-  const _hoisted_4$4 = { class: "bg-$ud-bg-secondary sticky select-none" };
+  const _hoisted_4$4 = { class: "bg-$ud-bg-secondary select-none" };
   const _hoisted_5$4 = {
-    scope: "col",
-    class: "relative p-2"
+    style: { "table-layout": "fixed" },
+    class: "table"
   };
-  const _hoisted_6$4 = { class: "sr-only" };
-  const _hoisted_7$4 = {
+  const _hoisted_6$4 = {
+    scope: "col",
+    class: "w-8 relative p-2"
+  };
+  const _hoisted_7$4 = { class: "sr-only" };
+  const _hoisted_8$2 = {
     scope: "col",
     class: "w-60 py-2 pl-4 pr-3 text-left text-xs font-semibold"
   };
-  const _hoisted_8$3 = { class: "inline-flex items-center" };
-  const _hoisted_9$2 = { class: "relative ml-0.5" };
-  const _hoisted_10$2 = { class: "inline-flex items-center" };
-  const _hoisted_11$2 = { class: "relative ml-0.5" };
-  const _hoisted_12$1 = {
+  const _hoisted_9$2 = { class: "inline-flex items-center" };
+  const _hoisted_10$2 = { class: "relative ml-0.5" };
+  const _hoisted_11$2 = { class: "inline-flex items-center" };
+  const _hoisted_12$1 = { class: "relative ml-0.5" };
+  const _hoisted_13$1 = {
     scope: "col",
     class: "relative py-2 pl-3 pr-4"
   };
-  const _hoisted_13$1 = { class: "sr-only" };
-  const _hoisted_14$1 = { class: "divide-y divide-$ud-border bg-$ud-bg" };
-  const _hoisted_15$1 = ["onClick"];
-  const _hoisted_16$1 = ["title"];
-  const _hoisted_17$1 = ["href"];
-  const _hoisted_18$1 = { class: "break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
-  const _hoisted_19$1 = { class: "break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
-  const _hoisted_20$1 = { class: "relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium" };
-  const _hoisted_21 = ["href"];
-  const _hoisted_22 = { class: "sr-only" };
-  const _hoisted_23 = { key: 0 };
-  const _hoisted_24 = {
+  const _hoisted_14$1 = { class: "sr-only" };
+  const _hoisted_15$1 = {
+    key: 0,
+    class: "flex items-center justify-center py-10"
+  };
+  const _hoisted_16$1 = /* @__PURE__ */ vue.createElementVNode("svg", {
+    class: "animate-spin w-10 h-10 text-indigo-500",
+    xmlns: "http://www.w3.org/2000/svg",
+    fill: "none",
+    viewBox: "0 0 24 24"
+  }, [
+    /* @__PURE__ */ vue.createElementVNode("circle", {
+      class: "opacity-25",
+      cx: "12",
+      cy: "12",
+      r: "10",
+      stroke: "currentColor",
+      "stroke-width": "4"
+    }),
+    /* @__PURE__ */ vue.createElementVNode("path", {
+      class: "opacity-75",
+      fill: "currentColor",
+      d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    })
+  ], -1);
+  const _hoisted_17$1 = [
+    _hoisted_16$1
+  ];
+  const _hoisted_18$1 = {
+    key: 1,
+    class: "p-3 text-center text-sm"
+  };
+  const _hoisted_19$1 = { class: "table w-full" };
+  const _hoisted_20$1 = ["onClick"];
+  const _hoisted_21 = ["title"];
+  const _hoisted_22 = ["href"];
+  const _hoisted_23 = { class: "w-20 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
+  const _hoisted_24 = { class: "w-22 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary" };
+  const _hoisted_25 = { class: "relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium" };
+  const _hoisted_26 = ["href"];
+  const _hoisted_27 = { class: "sr-only" };
+  const _hoisted_28 = {
+    key: 0,
+    class: "table w-full"
+  };
+  const _hoisted_29 = {
     colspan: "5",
     class: "py-2"
   };
-  const _hoisted_25 = { class: "mx-2" };
-  const _hoisted_26 = { class: "text-xs grid grid-cols-6 gap-y-2" };
-  const _hoisted_27 = { class: "font-semibold" };
-  const _hoisted_28 = { class: "text-$ud-text" };
-  const _hoisted_29 = { class: "font-semibold" };
-  const _hoisted_30 = { class: "text-$ud-text" };
-  const _hoisted_31 = { class: "font-semibold" };
-  const _hoisted_32 = { class: "text-$ud-text" };
-  const _hoisted_33 = { class: "font-semibold" };
-  const _hoisted_34 = { class: "col-span-5 text-$ud-text" };
-  const _hoisted_35 = ["href"];
+  const _hoisted_30 = { class: "mx-2" };
+  const _hoisted_31 = { class: "text-xs grid grid-cols-6 gap-y-2" };
+  const _hoisted_32 = { class: "font-semibold" };
+  const _hoisted_33 = { class: "text-$ud-text" };
+  const _hoisted_34 = { class: "font-semibold" };
+  const _hoisted_35 = { class: "text-$ud-text" };
   const _hoisted_36 = { class: "font-semibold" };
-  const _hoisted_37 = { class: "col-span-5 text-$ud-text" };
-  const _hoisted_38 = {
-    key: 0,
-    class: "p-3 text-center text-sm"
-  };
+  const _hoisted_37 = { class: "text-$ud-text" };
+  const _hoisted_38 = { class: "font-semibold" };
+  const _hoisted_39 = { class: "col-span-5 text-$ud-text" };
+  const _hoisted_40 = ["href"];
+  const _hoisted_41 = { class: "font-semibold" };
+  const _hoisted_42 = { class: "col-span-5 text-$ud-text" };
   const _sfc_main$6 = /* @__PURE__ */ vue.defineComponent({
     __name: "DataTable",
     props: {
-      data: null
+      data: null,
+      loading: { type: Boolean }
     },
     setup(__props) {
       const props = __props;
@@ -1548,6 +1793,14 @@
           return b.daily_installs - a.daily_installs;
         }
       );
+      const { list, containerProps, wrapperProps } = useVirtualList(sortedData, {
+        itemHeight: (index) => {
+          if (expanded.value[index])
+            return 112;
+          else
+            return 32;
+        }
+      });
       const sortIcon = (sort2) => {
         if (sort2 === "")
           return "i-carbon-caret-sort";
@@ -1580,19 +1833,19 @@
           vue.createElementVNode("div", _hoisted_2$5, [
             vue.createElementVNode("table", _hoisted_3$4, [
               vue.createElementVNode("thead", _hoisted_4$4, [
-                vue.createElementVNode("tr", null, [
-                  vue.createElementVNode("th", _hoisted_5$4, [
-                    vue.createElementVNode("span", _hoisted_6$4, vue.toDisplayString(vue.unref(t)("table.toggle-expand")), 1)
+                vue.createElementVNode("tr", _hoisted_5$4, [
+                  vue.createElementVNode("th", _hoisted_6$4, [
+                    vue.createElementVNode("span", _hoisted_7$4, vue.toDisplayString(vue.unref(t)("table.toggle-expand")), 1)
                   ]),
-                  vue.createElementVNode("th", _hoisted_7$4, vue.toDisplayString(vue.unref(t)("table.title")), 1),
+                  vue.createElementVNode("th", _hoisted_8$2, vue.toDisplayString(vue.unref(t)("table.title")), 1),
                   vue.createElementVNode("th", {
                     scope: "col",
                     class: "w-20 px-2 py-2 text-left text-xs font-semibold cursor-pointer",
                     onClick: _cache[0] || (_cache[0] = ($event) => onSortClick("daily"))
                   }, [
-                    vue.createElementVNode("div", _hoisted_8$3, [
+                    vue.createElementVNode("div", _hoisted_9$2, [
                       vue.createElementVNode("div", null, vue.toDisplayString(vue.unref(t)("table.daily")), 1),
-                      vue.createElementVNode("div", _hoisted_9$2, [
+                      vue.createElementVNode("div", _hoisted_10$2, [
                         vue.createElementVNode("div", {
                           class: vue.normalizeClass(sortIcon(vue.unref(sort).daily))
                         }, null, 2)
@@ -1604,88 +1857,89 @@
                     class: "w-22 px-2 py-2 text-left text-xs font-semibold cursor-pointer",
                     onClick: _cache[1] || (_cache[1] = ($event) => onSortClick("updated"))
                   }, [
-                    vue.createElementVNode("div", _hoisted_10$2, [
+                    vue.createElementVNode("div", _hoisted_11$2, [
                       vue.createElementVNode("div", null, vue.toDisplayString(vue.unref(t)("table.update")), 1),
-                      vue.createElementVNode("div", _hoisted_11$2, [
+                      vue.createElementVNode("div", _hoisted_12$1, [
                         vue.createElementVNode("div", {
                           class: vue.normalizeClass(sortIcon(vue.unref(sort).updated))
                         }, null, 2)
                       ])
                     ])
                   ]),
-                  vue.createElementVNode("th", _hoisted_12$1, [
-                    vue.createElementVNode("span", _hoisted_13$1, vue.toDisplayString(vue.unref(t)("table.install")), 1)
+                  vue.createElementVNode("th", _hoisted_13$1, [
+                    vue.createElementVNode("span", _hoisted_14$1, vue.toDisplayString(vue.unref(t)("table.install")), 1)
                   ])
                 ])
               ]),
-              vue.createElementVNode("tbody", _hoisted_14$1, [
-                (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(vue.unref(sortedData), (item, i) => {
-                  return vue.openBlock(), vue.createElementBlock(vue.Fragment, {
-                    key: item.id
-                  }, [
-                    vue.createElementVNode("tr", null, [
-                      vue.createElementVNode("td", {
-                        class: "relative truncate p-2 text-right text-xs font-medium cursor-pointer",
-                        onClick: ($event) => toggleExpand(i)
-                      }, [
-                        vue.createElementVNode("div", {
-                          class: vue.normalizeClass(["i-carbon-chevron-right", vue.unref(expanded)[i] && "rotate-90"])
-                        }, null, 2)
-                      ], 8, _hoisted_15$1),
-                      vue.createElementVNode("td", {
-                        title: item.name,
-                        class: "break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
-                      }, [
-                        vue.createElementVNode("a", {
-                          href: item.url,
-                          target: "_blank"
-                        }, vue.toDisplayString(item.name), 9, _hoisted_17$1)
-                      ], 8, _hoisted_16$1),
-                      vue.createElementVNode("td", _hoisted_18$1, vue.toDisplayString(item.daily_installs), 1),
-                      vue.createElementVNode("td", _hoisted_19$1, vue.toDisplayString(formatTimeAgoWithI18n(new Date(item.code_updated_at))), 1),
-                      vue.createElementVNode("td", _hoisted_20$1, [
-                        vue.createElementVNode("a", {
-                          href: item.code_url,
-                          target: "_blank",
-                          class: "text-indigo-600 hover:text-indigo-900"
+              vue.createElementVNode("tbody", vue.mergeProps(vue.unref(containerProps), { class: "h-60 overflow-y-overlay block divide-y divide-$ud-border w-full bg-$ud-bg" }), [
+                vue.createElementVNode("div", vue.normalizeProps(vue.guardReactiveProps(vue.unref(wrapperProps))), [
+                  __props.loading ? (vue.openBlock(), vue.createElementBlock("div", _hoisted_15$1, _hoisted_17$1)) : __props.data.length === 0 ? (vue.openBlock(), vue.createElementBlock("div", _hoisted_18$1, vue.toDisplayString(vue.unref(t)("table.empty")), 1)) : (vue.openBlock(true), vue.createElementBlock(vue.Fragment, { key: 2 }, vue.renderList(vue.unref(list), (item) => {
+                    return vue.openBlock(), vue.createElementBlock(vue.Fragment, {
+                      key: item.index
+                    }, [
+                      vue.createElementVNode("tr", _hoisted_19$1, [
+                        vue.createElementVNode("td", {
+                          class: "w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer",
+                          onClick: ($event) => toggleExpand(item.index)
                         }, [
-                          vue.createTextVNode(vue.toDisplayString(vue.unref(t)("table.install")) + " ", 1),
-                          vue.createElementVNode("span", _hoisted_22, ", " + vue.toDisplayString(item.name), 1)
-                        ], 8, _hoisted_21)
-                      ])
-                    ]),
-                    vue.unref(expanded)[i] ? (vue.openBlock(), vue.createElementBlock("tr", _hoisted_23, [
-                      vue.createElementVNode("td", _hoisted_24, [
-                        vue.createElementVNode("div", _hoisted_25, [
-                          vue.createElementVNode("dl", _hoisted_26, [
-                            vue.createElementVNode("dt", _hoisted_27, vue.toDisplayString(vue.unref(t)("table.version")), 1),
-                            vue.createElementVNode("dd", _hoisted_28, vue.toDisplayString(item.version), 1),
-                            vue.createElementVNode("dt", _hoisted_29, vue.toDisplayString(vue.unref(t)("table.score")), 1),
-                            vue.createElementVNode("dd", _hoisted_30, vue.toDisplayString(item.fan_score), 1),
-                            vue.createElementVNode("dt", _hoisted_31, vue.toDisplayString(vue.unref(t)("table.total-installs")), 1),
-                            vue.createElementVNode("dd", _hoisted_32, vue.toDisplayString(item.total_installs.toLocaleString()), 1),
-                            vue.createElementVNode("dt", _hoisted_33, vue.toDisplayString(vue.unref(t)("table.authors")), 1),
-                            vue.createElementVNode("dd", _hoisted_34, [
-                              (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(item.users, (user) => {
-                                return vue.openBlock(), vue.createElementBlock("a", {
-                                  key: user.id,
-                                  href: user.url,
-                                  target: "_blank",
-                                  class: "underline underline-$ud-border"
-                                }, vue.toDisplayString(user.name), 9, _hoisted_35);
-                              }), 128))
-                            ]),
-                            vue.createElementVNode("dt", _hoisted_36, vue.toDisplayString(vue.unref(t)("table.description")), 1),
-                            vue.createElementVNode("dd", _hoisted_37, vue.toDisplayString(item.description), 1)
+                          vue.createElementVNode("div", {
+                            class: vue.normalizeClass(["i-carbon-chevron-right", vue.unref(expanded)[item.index] && "rotate-90"])
+                          }, null, 2)
+                        ], 8, _hoisted_20$1),
+                        vue.createElementVNode("td", {
+                          title: item.data.name,
+                          class: "w-60 break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
+                        }, [
+                          vue.createElementVNode("a", {
+                            href: item.data.url,
+                            target: "_blank"
+                          }, vue.toDisplayString(item.data.name), 9, _hoisted_22)
+                        ], 8, _hoisted_21),
+                        vue.createElementVNode("td", _hoisted_23, vue.toDisplayString(item.data.daily_installs), 1),
+                        vue.createElementVNode("td", _hoisted_24, vue.toDisplayString(formatTimeAgoWithI18n(new Date(item.data.code_updated_at))), 1),
+                        vue.createElementVNode("td", _hoisted_25, [
+                          vue.createElementVNode("a", {
+                            href: item.data.code_url,
+                            target: "_blank",
+                            class: "text-indigo-600 hover:text-indigo-900"
+                          }, [
+                            vue.createTextVNode(vue.toDisplayString(vue.unref(t)("table.install")) + " ", 1),
+                            vue.createElementVNode("span", _hoisted_27, ", " + vue.toDisplayString(item.data.name), 1)
+                          ], 8, _hoisted_26)
+                        ])
+                      ]),
+                      vue.unref(expanded)[item.index] ? (vue.openBlock(), vue.createElementBlock("tr", _hoisted_28, [
+                        vue.createElementVNode("td", _hoisted_29, [
+                          vue.createElementVNode("div", _hoisted_30, [
+                            vue.createElementVNode("dl", _hoisted_31, [
+                              vue.createElementVNode("dt", _hoisted_32, vue.toDisplayString(vue.unref(t)("table.version")), 1),
+                              vue.createElementVNode("dd", _hoisted_33, vue.toDisplayString(item.data.version), 1),
+                              vue.createElementVNode("dt", _hoisted_34, vue.toDisplayString(vue.unref(t)("table.score")), 1),
+                              vue.createElementVNode("dd", _hoisted_35, vue.toDisplayString(item.data.fan_score), 1),
+                              vue.createElementVNode("dt", _hoisted_36, vue.toDisplayString(vue.unref(t)("table.total-installs")), 1),
+                              vue.createElementVNode("dd", _hoisted_37, vue.toDisplayString(item.data.total_installs.toLocaleString()), 1),
+                              vue.createElementVNode("dt", _hoisted_38, vue.toDisplayString(vue.unref(t)("table.authors")), 1),
+                              vue.createElementVNode("dd", _hoisted_39, [
+                                (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(item.data.users, (user) => {
+                                  return vue.openBlock(), vue.createElementBlock("a", {
+                                    key: user.id,
+                                    href: user.url,
+                                    target: "_blank",
+                                    class: "underline underline-$ud-border"
+                                  }, vue.toDisplayString(user.name), 9, _hoisted_40);
+                                }), 128))
+                              ]),
+                              vue.createElementVNode("dt", _hoisted_41, vue.toDisplayString(vue.unref(t)("table.description")), 1),
+                              vue.createElementVNode("dd", _hoisted_42, vue.toDisplayString(item.data.description), 1)
+                            ])
                           ])
                         ])
-                      ])
-                    ])) : vue.createCommentVNode("", true)
-                  ], 64);
-                }), 128))
-              ])
-            ]),
-            __props.data.length === 0 ? (vue.openBlock(), vue.createElementBlock("div", _hoisted_38, vue.toDisplayString(vue.unref(t)("table.empty")), 1)) : vue.createCommentVNode("", true)
+                      ])) : vue.createCommentVNode("", true)
+                    ], 64);
+                  }), 128))
+                ], 16)
+              ], 16)
+            ])
           ])
         ]);
       };
@@ -1908,7 +2162,7 @@
   ], -1);
   const _hoisted_6$2 = ["aria-activedescendant"];
   const _hoisted_7$2 = ["id", "onClick", "onKeydown"];
-  const _hoisted_8$2 = { class: "flex items-center" };
+  const _hoisted_8$1 = { class: "flex items-center" };
   const _hoisted_9$1 = {
     key: 0,
     class: "text-indigo-600 group-focus:text-$ud-text hover:text-$ud-text absolute inset-y-0 right-0 flex items-center pr-4"
@@ -2010,7 +2264,7 @@
                       vue.withKeys(vue.withModifiers(onEsc, ["prevent"]), ["esc"])
                     ]
                   }, [
-                    vue.createElementVNode("div", _hoisted_8$2, [
+                    vue.createElementVNode("div", _hoisted_8$1, [
                       vue.createElementVNode("span", {
                         class: vue.normalizeClass(["font-normal block truncate uppercase", vue.unref(locale) === lang ? "font-semibold" : "font-normal"])
                       }, vue.toDisplayString(lang), 3)
@@ -2035,7 +2289,7 @@
   const _hoisted_5$1 = { class: "py-2 flex items-center justify-between space-x-4" };
   const _hoisted_6$1 = { class: "flex flex-col w-4/5 overflow-hidden" };
   const _hoisted_7$1 = { class: "text-sm font-medium" };
-  const _hoisted_8$1 = { class: "text-sm text-$ud-text-secondary text-xs" };
+  const _hoisted_8 = { class: "text-sm text-$ud-text-secondary text-xs" };
   const _hoisted_9 = { class: "py-2 flex items-center justify-between space-x-4" };
   const _hoisted_10 = { class: "flex flex-col w-4/5 overflow-hidden" };
   const _hoisted_11 = { class: "text-sm font-medium" };
@@ -2083,7 +2337,7 @@
             vue.createElementVNode("li", _hoisted_5$1, [
               vue.createElementVNode("div", _hoisted_6$1, [
                 vue.createElementVNode("p", _hoisted_7$1, vue.toDisplayString(vue.unref(t)("language")), 1),
-                vue.createElementVNode("p", _hoisted_8$1, vue.toDisplayString(vue.unref(t)("language-desc")), 1)
+                vue.createElementVNode("p", _hoisted_8, vue.toDisplayString(vue.unref(t)("language-desc")), 1)
               ]),
               vue.createVNode(_component_LocaleSelect)
             ]),
@@ -2157,11 +2411,12 @@
   }
   function useDataList() {
     const settings2 = useUserjsDiggerSettings();
-    const { data: greasyfork } = useGreasyfork();
-    const { data: sleazyfork, execute } = useGreasyfork(
-      "https://sleazyfork.org",
-      false
-    );
+    const { data: greasyfork, isFetching } = useGreasyfork();
+    const {
+      data: sleazyfork,
+      execute,
+      isFetching: isSleazyforkFetching
+    } = useGreasyfork("https://sleazyfork.org", false);
     vue.watch(
       () => settings2.value.nsfw,
       (val) => {
@@ -2180,23 +2435,24 @@
         (item) => settings2.value.filter.every((keywords) => !item.name.includes(keywords))
       );
     });
-    return data;
+    const isLoading = vue.computed(() => {
+      if (settings2.value.nsfw)
+        return isFetching.value && isSleazyforkFetching.value;
+      return isFetching.value;
+    });
+    return { data, isLoading };
   }
   const _hoisted_1 = { class: "p-2 text-sm truncate" };
-  const _hoisted_2 = { class: "rounded-full mx-1 px-2 py-0.25 text-xs bg-indigo-500 text-white" };
-  const _hoisted_3 = ["title"];
-  const _hoisted_4 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon:settings-adjust" }, null, -1);
-  const _hoisted_5 = [
-    _hoisted_4
+  const _hoisted_2 = ["title"];
+  const _hoisted_3 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon:settings-adjust" }, null, -1);
+  const _hoisted_4 = [
+    _hoisted_3
   ];
-  const _hoisted_6 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-close" }, null, -1);
-  const _hoisted_7 = [
-    _hoisted_6
+  const _hoisted_5 = /* @__PURE__ */ vue.createElementVNode("div", { class: "i-carbon-close" }, null, -1);
+  const _hoisted_6 = [
+    _hoisted_5
   ];
-  const _hoisted_8 = {
-    key: 0,
-    class: "h-60 overflow-y-auto"
-  };
+  const _hoisted_7 = { key: 0 };
   const _sfc_main = /* @__PURE__ */ vue.defineComponent({
     __name: "App",
     setup(__props) {
@@ -2214,7 +2470,7 @@
         { ignore: [container] }
       );
       const [showTable, toggleShowTable] = useToggle(false);
-      const data = useDataList();
+      const { data, isLoading } = useDataList();
       const pagePsl = vue.computed(() => {
         return psl.get(window.location.hostname);
       });
@@ -2254,13 +2510,15 @@
                     count: vue.withCtx(() => {
                       var _a2;
                       return [
-                        vue.createElementVNode("span", _hoisted_2, vue.toDisplayString((_a2 = vue.unref(data)) == null ? void 0 : _a2.length), 1)
+                        vue.createElementVNode("span", {
+                          class: vue.normalizeClass([vue.unref(isLoading) && "animate-pulse text-transparent", "rounded-full mx-1 px-2 py-0.25 text-xs bg-indigo-500 text-white"])
+                        }, vue.toDisplayString((_a2 = vue.unref(data)) == null ? void 0 : _a2.length), 3)
                       ];
                     }),
                     host: vue.withCtx(() => [
                       vue.createElementVNode("span", {
                         title: vue.unref(pagePsl) ?? ""
-                      }, vue.toDisplayString(vue.unref(pagePsl)), 9, _hoisted_3)
+                      }, vue.toDisplayString(vue.unref(pagePsl)), 9, _hoisted_2)
                     ]),
                     _: 1
                   })
@@ -2268,16 +2526,17 @@
                 vue.createElementVNode("div", {
                   class: "ml-auto hover:bg-$ud-bg-hover rounded p-1",
                   onClick: _cache[2] || (_cache[2] = vue.withModifiers(($event) => vue.unref(toggleSettingShow)(true), ["stop"]))
-                }, _hoisted_5),
+                }, _hoisted_4),
                 vue.createElementVNode("div", {
                   class: "hover:bg-$ud-bg-hover rounded p-1",
                   onClick: _cache[3] || (_cache[3] = vue.withModifiers(($event) => vue.unref(toggleCollapse)(false), ["stop"]))
-                }, _hoisted_7)
+                }, _hoisted_6)
               ]),
-              vue.unref(showTable) ? (vue.openBlock(), vue.createElementBlock("section", _hoisted_8, [
+              vue.unref(showTable) ? (vue.openBlock(), vue.createElementBlock("section", _hoisted_7, [
                 vue.createVNode(_component_DataTable, {
-                  data: vue.unref(data) ?? []
-                }, null, 8, ["data"])
+                  data: vue.unref(data) ?? [],
+                  loading: vue.unref(isLoading)
+                }, null, 8, ["data", "loading"])
               ])) : vue.createCommentVNode("", true)
             ], 2)
           ], 64)) : vue.createCommentVNode("", true)
@@ -2285,7 +2544,7 @@
       };
     }
   });
-  const unocss = `/* layer: preflights */*,::before,::after{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}::backdrop{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}[type='text'], [type='email'], [type='url'], [type='password'], [type='number'], [type='date'], [type='datetime-local'], [type='month'], [type='search'], [type='tel'], [type='time'], [type='week'], [multiple], textarea, select { appearance: none;background-color: #fff;border-color: #6b7280;border-width: 1px;border-radius: 0;padding-top: 0.5rem;padding-right: 0.75rem;padding-bottom: 0.5rem;padding-left: 0.75rem;font-size: 1rem;line-height: 1.5rem;--un-shadow: 0 0 #0000; }[type='text']:focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus { outline: 2px solid transparent;outline-offset: 2px;--un-ring-inset: var(--un-empty,/*!*/ /*!*/);--un-ring-offset-width: 0px;--un-ring-offset-color: #fff;--un-ring-color: #2563eb;--un-ring-offset-shadow: var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow: var(--un-ring-inset) 0 0 0 calc(1px + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);border-color: #2563eb; }input::placeholder, textarea::placeholder { color: #6b7280;opacity: 1; }::-webkit-datetime-edit-fields-wrapper { padding: 0; }::-webkit-date-and-time-value { min-height: 1.5em; }::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field { padding-top: 0;padding-bottom: 0; }select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position: right 0.5rem center;background-repeat: no-repeat;background-size: 1.5em 1.5em;padding-right: 2.5rem;print-color-adjust: exact; }[multiple] { background-image: initial;background-position: initial;background-repeat: unset;background-size: initial;padding-right: 0.75rem;print-color-adjust: unset; }[type='checkbox'], [type='radio'] { appearance: none;padding: 0;print-color-adjust: exact;display: inline-block;vertical-align: middle;background-origin: border-box;user-select: none;flex-shrink: 0;height: 1rem;width: 1rem;color: #2563eb;background-color: #fff;border-color: #6b7280;border-width: 1px;--un-shadow: 0 0 #0000; }[type='checkbox'] { border-radius: 0; }[type='radio'] { border-radius: 100%; }[type='checkbox']:focus, [type='radio']:focus { outline: 2px solid transparent;outline-offset: 2px;--un-ring-inset: var(--un-empty,/*!*/ /*!*/);--un-ring-offset-width: 2px;--un-ring-offset-color: #fff;--un-ring-color: #2563eb;--un-ring-offset-shadow: var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow: var(--un-ring-inset) 0 0 0 calc(2px + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow); }[type='checkbox']:checked, [type='radio']:checked { border-color: transparent;background-color: currentColor;background-size: 100% 100%;background-position: center;background-repeat: no-repeat; }[type='checkbox']:checked { background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }[type='radio']:checked { background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e"); }[type='checkbox']:checked:hover, [type='checkbox']:checked:focus, [type='radio']:checked:hover, [type='radio']:checked:focus { border-color: transparent;background-color: currentColor; }[type='checkbox']:indeterminate { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");border-color: transparent;background-color: currentColor;background-size: 100% 100%;background-position: center;background-repeat: no-repeat; }[type='checkbox']:indeterminate:hover, [type='checkbox']:indeterminate:focus { border-color: transparent;background-color: currentColor; }[type='file'] { background: unset;border-color: inherit;border-width: 0;border-radius: 0;padding: 0;font-size: unset;line-height: inherit; }[type='file']:focus { outline: 1px solid ButtonText , 1px auto -webkit-focus-ring-color; }[data-v-app]{font-size:16px}:host{z-index:999999;position:relative}/* layer: icons */.i-carbon-caret-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8zM8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-down{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-up{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-checkmark{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m13 24l-9-9l1.414-1.414L13 21.171L26.586 7.586L28 9L13 24z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-left{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M10 16L20 6l1.4 1.4l-8.6 8.6l8.6 8.6L20 26z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-right{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M22 16L12 26l-1.4-1.4l8.6-8.6l-8.6-8.6L12 6z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m16 28l-7-7l1.41-1.41L16 25.17l5.59-5.58L23 21l-7 7zm0-24l7 7l-1.41 1.41L16 6.83l-5.59 5.58L9 11l7-7z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-close{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M24 9.4L22.6 8L16 14.6L9.4 8L8 9.4l6.6 6.6L8 22.6L9.4 24l6.6-6.6l6.6 6.6l1.4-1.4l-6.6-6.6L24 9.4z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-settings{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M27 16.76v-1.53l1.92-1.68A2 2 0 0 0 29.3 11l-2.36-4a2 2 0 0 0-1.73-1a2 2 0 0 0-.64.1l-2.43.82a11.35 11.35 0 0 0-1.31-.75l-.51-2.52a2 2 0 0 0-2-1.61h-4.68a2 2 0 0 0-2 1.61l-.51 2.52a11.48 11.48 0 0 0-1.32.75l-2.38-.86A2 2 0 0 0 6.79 6a2 2 0 0 0-1.73 1L2.7 11a2 2 0 0 0 .41 2.51L5 15.24v1.53l-1.89 1.68A2 2 0 0 0 2.7 21l2.36 4a2 2 0 0 0 1.73 1a2 2 0 0 0 .64-.1l2.43-.82a11.35 11.35 0 0 0 1.31.75l.51 2.52a2 2 0 0 0 2 1.61h4.72a2 2 0 0 0 2-1.61l.51-2.52a11.48 11.48 0 0 0 1.32-.75l2.42.82a2 2 0 0 0 .64.1a2 2 0 0 0 1.73-1l2.28-4a2 2 0 0 0-.41-2.51ZM25.21 24l-3.43-1.16a8.86 8.86 0 0 1-2.71 1.57L18.36 28h-4.72l-.71-3.55a9.36 9.36 0 0 1-2.7-1.57L6.79 24l-2.36-4l2.72-2.4a8.9 8.9 0 0 1 0-3.13L4.43 12l2.36-4l3.43 1.16a8.86 8.86 0 0 1 2.71-1.57L13.64 4h4.72l.71 3.55a9.36 9.36 0 0 1 2.7 1.57L25.21 8l2.36 4l-2.72 2.4a8.9 8.9 0 0 1 0 3.13L27.57 20Z'/%3E%3Cpath fill='currentColor' d='M16 22a6 6 0 1 1 6-6a5.94 5.94 0 0 1-6 6Zm0-10a3.91 3.91 0 0 0-4 4a3.91 3.91 0 0 0 4 4a3.91 3.91 0 0 0 4-4a3.91 3.91 0 0 0-4-4Z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon\\:settings-adjust{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M30 8h-4.1c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2h14.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30V8zm-9 4c-1.7 0-3-1.3-3-3s1.3-3 3-3s3 1.3 3 3s-1.3 3-3 3zM2 24h4.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30v-2H15.9c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2zm9-4c1.7 0 3 1.3 3 3s-1.3 3-3 3s-3-1.3-3-3s1.3-3 3-3z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}/* layer: shortcuts */.container{width:100%;}@media (min-width: 640px){.container{max-width:640px;}}@media (min-width: 768px){.container{max-width:768px;}}@media (min-width: 1024px){.container{max-width:1024px;}}@media (min-width: 1280px){.container{max-width:1280px;}}@media (min-width: 1536px){.container{max-width:1536px;}}/* layer: default */.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0;}.pointer-events-none{pointer-events:none;}.absolute{position:absolute;}.fixed{position:fixed;}.relative{position:relative;}.sticky{position:sticky;}.inset-y-0{top:0;bottom:0;}.bottom-4{bottom:16px;}.left-1\\/2{left:50%;}.right-0{right:0;}.right-4{right:16px;}.top-25vh{top:25vh;}.z-10{z-index:10;}.grid{display:grid;}.col-span-5{grid-column:span 5/span 5;}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr));}.mx-1{margin-left:4px;margin-right:4px;}.mx-2{margin-left:8px;margin-right:8px;}.ml-0\\.5{margin-left:2px;}.ml-auto{margin-left:auto;}.mr-1{margin-right:4px;}.mt-1{margin-top:4px;}.block{display:block;}.inline-block{display:inline-block;}.h-3{height:12px;}.h-4{height:16px;}.h-60{height:240px;}.max-h-60{max-height:240px;}.max-w-60{max-width:240px;}.min-w-full{min-width:100%;}.w-100{width:400px;}.w-130{width:520px;}.w-20{width:80px;}.w-22{width:88px;}.w-3{width:12px;}.w-4{width:16px;}.w-4\\/5{width:80%;}.w-60{width:240px;}.w-9{width:36px;}.w-full{width:100%;}.flex{display:flex;}.inline-flex{display:inline-flex;}.flex-1{flex:1 1 0%;}.flex-shrink-0{flex-shrink:0;}.flex-col{flex-direction:column;}.flex-wrap{flex-wrap:wrap;}.-translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(calc(100% + 16px) * -1);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-translate-x-1\\/2{--un-translate-x:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(100% + 16px);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-0{--un-translate-x:0;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-5{--un-translate-x:20px;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:-90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.transform{transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.cursor-default{cursor:default;}.cursor-pointer{cursor:pointer;}.select-none{user-select:none;}.items-center{align-items:center;}.justify-center{justify-content:center;}.justify-between{justify-content:space-between;}.gap-y-1{grid-row-gap:4px;row-gap:4px;}.gap-y-2{grid-row-gap:8px;row-gap:8px;}.space-x-4>:not([hidden])~:not([hidden]){--un-space-x-reverse:0;margin-left:calc(16px * calc(1 - var(--un-space-x-reverse)));margin-right:calc(16px * var(--un-space-x-reverse));}.space-y-2>:not([hidden])~:not([hidden]){--un-space-y-reverse:0;margin-top:calc(8px * calc(1 - var(--un-space-y-reverse)));margin-bottom:calc(8px * var(--un-space-y-reverse));}.divide-y>:not([hidden])~:not([hidden]){--un-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--un-divide-y-reverse)));border-bottom-width:calc(1px * var(--un-divide-y-reverse));border-top-style:solid;border-bottom-style:solid;}.divide-\\$ud-border-secondary>:not([hidden])~:not([hidden]){border-color:var(--ud-border-secondary);}.border-\\$ud-border,.divide-\\$ud-border>:not([hidden])~:not([hidden]){border-color:var(--ud-border);}.overflow-auto{overflow:auto;}.overflow-hidden{overflow:hidden;}.overflow-y-auto{overflow-y:auto;}.overflow-y-scroll{overflow-y:scroll;}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.break-all{word-break:break-all;}.border,.border-1px{border-width:1px;}.border-2{border-width:2px;}.border-b{border-bottom-width:1px;}.border-gray-300{--un-border-opacity:1;border-color:rgba(209,213,219,var(--un-border-opacity));}.border-transparent{border-color:transparent;}.focus-within\\:border-indigo-500:focus-within,.focus\\:border-indigo-500:focus{--un-border-opacity:1;border-color:rgba(99,102,241,var(--un-border-opacity));}.border-b-\\$ud-border{border-bottom-color:var(--ud-border);}.rounded{border-radius:4px;}.rounded-full{border-radius:9999px;}.rounded-lg{border-radius:8px;}.rounded-md{border-radius:6px;}.border-none{border-style:none;}.bg-\\$ud-bg{background-color:var(--ud-bg);}.bg-\\$ud-bg-secondary{background-color:var(--ud-bg-secondary);}.bg-gray-200{--un-bg-opacity:1;background-color:rgba(229,231,235,var(--un-bg-opacity));}.bg-indigo-100{--un-bg-opacity:1;background-color:rgba(224,231,255,var(--un-bg-opacity));}.bg-indigo-500,.focus\\:bg-indigo-500:focus{--un-bg-opacity:1;background-color:rgba(99,102,241,var(--un-bg-opacity));}.bg-indigo-600,.focus\\:bg-indigo-600:focus,.hover\\:bg-indigo-600:hover{--un-bg-opacity:1;background-color:rgba(79,70,229,var(--un-bg-opacity));}.bg-transparent{background-color:transparent;}.bg-white{--un-bg-opacity:1;background-color:rgba(255,255,255,var(--un-bg-opacity));}.hover\\:bg-\\$ud-bg-hover:hover{background-color:var(--ud-bg-hover);}.hover\\:bg-indigo-200:hover{--un-bg-opacity:1;background-color:rgba(199,210,254,var(--un-bg-opacity));}.p-0{padding:0;}.p-1{padding:4px;}.p-2{padding:8px;}.p-3{padding:12px;}.p-4{padding:16px;}.px-2{padding-left:8px;padding-right:8px;}.px-3{padding-left:12px;padding-right:12px;}.px-4{padding-left:16px;padding-right:16px;}.py-0\\.25{padding-top:1px;padding-bottom:1px;}.py-0\\.5{padding-top:2px;padding-bottom:2px;}.py-1{padding-top:4px;padding-bottom:4px;}.py-2{padding-top:8px;padding-bottom:8px;}.pl-2\\.5{padding-left:10px;}.pl-3{padding-left:12px;}.pl-4{padding-left:16px;}.pr-1{padding-right:4px;}.pr-10{padding-right:40px;}.pr-2{padding-right:8px;}.pr-3{padding-right:12px;}.pr-4{padding-right:16px;}.pr-9{padding-right:36px;}.text-center{text-align:center;}.text-left{text-align:left;}.text-right{text-align:right;}.align-middle{vertical-align:middle;}.text-base{font-size:16px;line-height:24px;}.text-sm{font-size:14px;line-height:20px;}.text-xs{font-size:12px;line-height:16px;}.font-medium{font-weight:500;}.font-normal{font-weight:400;}.font-semibold{font-weight:600;}.uppercase{text-transform:uppercase;}.focus\\:text-white:focus,.hover\\:text-white:hover,.text-white{--un-text-opacity:1;color:rgba(255,255,255,var(--un-text-opacity));}.group:focus .group-focus\\:text-\\$ud-text,.hover\\:text-\\$ud-text:hover,.text-\\$ud-text{color:var(--ud-text);}.hover\\:text-indigo-500:hover{--un-text-opacity:1;color:rgba(99,102,241,var(--un-text-opacity));}.hover\\:text-indigo-900:hover{--un-text-opacity:1;color:rgba(49,46,129,var(--un-text-opacity));}.text-\\$ud-text-secondary{color:var(--ud-text-secondary);}.text-indigo-400{--un-text-opacity:1;color:rgba(129,140,248,var(--un-text-opacity));}.text-indigo-600{--un-text-opacity:1;color:rgba(79,70,229,var(--un-text-opacity));}.text-indigo-700{--un-text-opacity:1;color:rgba(67,56,202,var(--un-text-opacity));}.underline{text-decoration-line:underline;}.underline-\\$ud-border{-webkit-text-decoration-color:var(--ud-border);text-decoration-color:var(--ud-border);}.opacity-0{opacity:0;}.opacity-100{opacity:1;}.shadow{--un-shadow:var(--un-shadow-inset) 0 1px 3px 0 var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 1px 2px -1px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-lg{--un-shadow:var(--un-shadow-inset) 0 10px 15px -3px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 4px 6px -4px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-md{--un-shadow:var(--un-shadow-inset) 0 4px 6px -1px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 2px 4px -2px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-sm{--un-shadow:var(--un-shadow-inset) 0 1px 2px 0 var(--un-shadow-color, rgba(0,0,0,0.05));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:outline-none:focus{outline:2px solid transparent;outline-offset:2px;}.focus-within\\:ring-2:focus-within,.focus\\:ring-2:focus{--un-ring-width:2px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:ring-1:focus,.ring-1{--un-ring-width:1px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.ring-0{--un-ring-width:0;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.ring-none\\!{--un-ring-width:0 !important;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color) !important;--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color) !important;box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow) !important;}.focus\\:ring-offset-2:focus{--un-ring-offset-width:2px;}.focus-within\\:ring-indigo-500:focus-within,.focus\\:ring-indigo-500:focus{--un-ring-opacity:1;--un-ring-color:rgba(99,102,241,var(--un-ring-opacity));}.ring-black{--un-ring-opacity:1;--un-ring-color:rgba(0,0,0,var(--un-ring-opacity));}.ring-opacity-5{--un-ring-opacity:0.05;}.filter{filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}.transition{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-colors{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.duration-100{transition-duration:100ms;}.duration-200{transition-duration:200ms;}.ease-in{transition-timing-function:cubic-bezier(0.4, 0, 1, 1);}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}.ease-out{transition-timing-function:cubic-bezier(0, 0, 0.2, 1);}@media (min-width: 640px){.sm\\:text-sm{font-size:14px;line-height:20px;}}`;
+  const unocss = `/* layer: preflights */*,::before,::after{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}::backdrop{--un-rotate:0;--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-scale-x:1;--un-scale-y:1;--un-scale-z:1;--un-skew-x:0;--un-skew-y:0;--un-translate-x:0;--un-translate-y:0;--un-translate-z:0;--un-pan-x: ;--un-pan-y: ;--un-pinch-zoom: ;--un-scroll-snap-strictness:proximity;--un-ordinal: ;--un-slashed-zero: ;--un-numeric-figure: ;--un-numeric-spacing: ;--un-numeric-fraction: ;--un-border-spacing-x:0;--un-border-spacing-y:0;--un-ring-offset-shadow:0 0 rgba(0,0,0,0);--un-ring-shadow:0 0 rgba(0,0,0,0);--un-shadow-inset: ;--un-shadow:0 0 rgba(0,0,0,0);--un-ring-inset: ;--un-ring-offset-width:0px;--un-ring-offset-color:#fff;--un-ring-width:0px;--un-ring-color:rgba(147,197,253,0.5);--un-blur: ;--un-brightness: ;--un-contrast: ;--un-drop-shadow: ;--un-grayscale: ;--un-hue-rotate: ;--un-invert: ;--un-saturate: ;--un-sepia: ;--un-backdrop-blur: ;--un-backdrop-brightness: ;--un-backdrop-contrast: ;--un-backdrop-grayscale: ;--un-backdrop-hue-rotate: ;--un-backdrop-invert: ;--un-backdrop-opacity: ;--un-backdrop-saturate: ;--un-backdrop-sepia: ;}[type='text'], [type='email'], [type='url'], [type='password'], [type='number'], [type='date'], [type='datetime-local'], [type='month'], [type='search'], [type='tel'], [type='time'], [type='week'], [multiple], textarea, select { appearance: none;background-color: #fff;border-color: #6b7280;border-width: 1px;border-radius: 0;padding-top: 0.5rem;padding-right: 0.75rem;padding-bottom: 0.5rem;padding-left: 0.75rem;font-size: 1rem;line-height: 1.5rem;--un-shadow: 0 0 #0000; }[type='text']:focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus { outline: 2px solid transparent;outline-offset: 2px;--un-ring-inset: var(--un-empty,/*!*/ /*!*/);--un-ring-offset-width: 0px;--un-ring-offset-color: #fff;--un-ring-color: #2563eb;--un-ring-offset-shadow: var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow: var(--un-ring-inset) 0 0 0 calc(1px + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);border-color: #2563eb; }input::placeholder, textarea::placeholder { color: #6b7280;opacity: 1; }::-webkit-datetime-edit-fields-wrapper { padding: 0; }::-webkit-date-and-time-value { min-height: 1.5em; }::-webkit-datetime-edit, ::-webkit-datetime-edit-year-field, ::-webkit-datetime-edit-month-field, ::-webkit-datetime-edit-day-field, ::-webkit-datetime-edit-hour-field, ::-webkit-datetime-edit-minute-field, ::-webkit-datetime-edit-second-field, ::-webkit-datetime-edit-millisecond-field, ::-webkit-datetime-edit-meridiem-field { padding-top: 0;padding-bottom: 0; }select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position: right 0.5rem center;background-repeat: no-repeat;background-size: 1.5em 1.5em;padding-right: 2.5rem;print-color-adjust: exact; }[multiple] { background-image: initial;background-position: initial;background-repeat: unset;background-size: initial;padding-right: 0.75rem;print-color-adjust: unset; }[type='checkbox'], [type='radio'] { appearance: none;padding: 0;print-color-adjust: exact;display: inline-block;vertical-align: middle;background-origin: border-box;user-select: none;flex-shrink: 0;height: 1rem;width: 1rem;color: #2563eb;background-color: #fff;border-color: #6b7280;border-width: 1px;--un-shadow: 0 0 #0000; }[type='checkbox'] { border-radius: 0; }[type='radio'] { border-radius: 100%; }[type='checkbox']:focus, [type='radio']:focus { outline: 2px solid transparent;outline-offset: 2px;--un-ring-inset: var(--un-empty,/*!*/ /*!*/);--un-ring-offset-width: 2px;--un-ring-offset-color: #fff;--un-ring-color: #2563eb;--un-ring-offset-shadow: var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow: var(--un-ring-inset) 0 0 0 calc(2px + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow: var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow); }[type='checkbox']:checked, [type='radio']:checked { border-color: transparent;background-color: currentColor;background-size: 100% 100%;background-position: center;background-repeat: no-repeat; }[type='checkbox']:checked { background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e"); }[type='radio']:checked { background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e"); }[type='checkbox']:checked:hover, [type='checkbox']:checked:focus, [type='radio']:checked:hover, [type='radio']:checked:focus { border-color: transparent;background-color: currentColor; }[type='checkbox']:indeterminate { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");border-color: transparent;background-color: currentColor;background-size: 100% 100%;background-position: center;background-repeat: no-repeat; }[type='checkbox']:indeterminate:hover, [type='checkbox']:indeterminate:focus { border-color: transparent;background-color: currentColor; }[type='file'] { background: unset;border-color: inherit;border-width: 0;border-radius: 0;padding: 0;font-size: unset;line-height: inherit; }[type='file']:focus { outline: 1px solid ButtonText , 1px auto -webkit-focus-ring-color; }[data-v-app]{font-size:16px}:host{z-index:999999;position:relative}/* layer: icons */.i-carbon-caret-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8zM8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-down{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m24 24l-8 8l-8-8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-caret-sort-up{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m8 8l8-8l8 8z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-checkmark{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m13 24l-9-9l1.414-1.414L13 21.171L26.586 7.586L28 9L13 24z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-left{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M10 16L20 6l1.4 1.4l-8.6 8.6l8.6 8.6L20 26z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-right{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M22 16L12 26l-1.4-1.4l8.6-8.6l-8.6-8.6L12 6z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-chevron-sort{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='m16 28l-7-7l1.41-1.41L16 25.17l5.59-5.58L23 21l-7 7zm0-24l7 7l-1.41 1.41L16 6.83l-5.59 5.58L9 11l7-7z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-close{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M24 9.4L22.6 8L16 14.6L9.4 8L8 9.4l6.6 6.6L8 22.6L9.4 24l6.6-6.6l6.6 6.6l1.4-1.4l-6.6-6.6L24 9.4z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon-settings{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M27 16.76v-1.53l1.92-1.68A2 2 0 0 0 29.3 11l-2.36-4a2 2 0 0 0-1.73-1a2 2 0 0 0-.64.1l-2.43.82a11.35 11.35 0 0 0-1.31-.75l-.51-2.52a2 2 0 0 0-2-1.61h-4.68a2 2 0 0 0-2 1.61l-.51 2.52a11.48 11.48 0 0 0-1.32.75l-2.38-.86A2 2 0 0 0 6.79 6a2 2 0 0 0-1.73 1L2.7 11a2 2 0 0 0 .41 2.51L5 15.24v1.53l-1.89 1.68A2 2 0 0 0 2.7 21l2.36 4a2 2 0 0 0 1.73 1a2 2 0 0 0 .64-.1l2.43-.82a11.35 11.35 0 0 0 1.31.75l.51 2.52a2 2 0 0 0 2 1.61h4.72a2 2 0 0 0 2-1.61l.51-2.52a11.48 11.48 0 0 0 1.32-.75l2.42.82a2 2 0 0 0 .64.1a2 2 0 0 0 1.73-1l2.28-4a2 2 0 0 0-.41-2.51ZM25.21 24l-3.43-1.16a8.86 8.86 0 0 1-2.71 1.57L18.36 28h-4.72l-.71-3.55a9.36 9.36 0 0 1-2.7-1.57L6.79 24l-2.36-4l2.72-2.4a8.9 8.9 0 0 1 0-3.13L4.43 12l2.36-4l3.43 1.16a8.86 8.86 0 0 1 2.71-1.57L13.64 4h4.72l.71 3.55a9.36 9.36 0 0 1 2.7 1.57L25.21 8l2.36 4l-2.72 2.4a8.9 8.9 0 0 1 0 3.13L27.57 20Z'/%3E%3Cpath fill='currentColor' d='M16 22a6 6 0 1 1 6-6a5.94 5.94 0 0 1-6 6Zm0-10a3.91 3.91 0 0 0-4 4a3.91 3.91 0 0 0 4 4a3.91 3.91 0 0 0 4-4a3.91 3.91 0 0 0-4-4Z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}.i-carbon\\:settings-adjust{--un-icon:url("data:image/svg+xml;utf8,%3Csvg viewBox='0 0 32 32' width='1em' height='1em' xmlns='http://www.w3.org/2000/svg' %3E%3Cpath fill='currentColor' d='M30 8h-4.1c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2h14.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30V8zm-9 4c-1.7 0-3-1.3-3-3s1.3-3 3-3s3 1.3 3 3s-1.3 3-3 3zM2 24h4.1c.5 2.3 2.5 4 4.9 4s4.4-1.7 4.9-4H30v-2H15.9c-.5-2.3-2.5-4-4.9-4s-4.4 1.7-4.9 4H2v2zm9-4c1.7 0 3 1.3 3 3s-1.3 3-3 3s-3-1.3-3-3s1.3-3 3-3z'/%3E%3C/svg%3E");-webkit-mask:var(--un-icon) no-repeat;mask:var(--un-icon) no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;background-color:currentColor;color:inherit;width:1em;height:1em;}/* layer: shortcuts */.container{width:100%;}@media (min-width: 640px){.container{max-width:640px;}}@media (min-width: 768px){.container{max-width:768px;}}@media (min-width: 1024px){.container{max-width:1024px;}}@media (min-width: 1280px){.container{max-width:1280px;}}@media (min-width: 1536px){.container{max-width:1536px;}}/* layer: default */.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0;}.pointer-events-none{pointer-events:none;}.absolute{position:absolute;}.fixed{position:fixed;}.relative{position:relative;}.inset-y-0{top:0;bottom:0;}.bottom-4{bottom:16px;}.left-1\\/2{left:50%;}.right-0{right:0;}.right-4{right:16px;}.top-25vh{top:25vh;}.z-10{z-index:10;}.grid{display:grid;}.col-span-5{grid-column:span 5/span 5;}.grid-cols-6{grid-template-columns:repeat(6,minmax(0,1fr));}.mx-1{margin-left:4px;margin-right:4px;}.mx-2{margin-left:8px;margin-right:8px;}.ml-0\\.5{margin-left:2px;}.ml-auto{margin-left:auto;}.mr-1{margin-right:4px;}.mt-1{margin-top:4px;}.block{display:block;}.inline-block{display:inline-block;}.h-10{height:40px;}.h-3{height:12px;}.h-4{height:16px;}.h-60{height:240px;}.max-h-60{max-height:240px;}.max-w-60{max-width:240px;}.min-w-full{min-width:100%;}.w-10{width:40px;}.w-100{width:400px;}.w-130{width:520px;}.w-20{width:80px;}.w-22{width:88px;}.w-3{width:12px;}.w-4{width:16px;}.w-4\\/5{width:80%;}.w-60{width:240px;}.w-8{width:32px;}.w-9{width:36px;}.w-full{width:100%;}.flex{display:flex;}.inline-flex{display:inline-flex;}.flex-1{flex:1 1 0%;}.flex-shrink-0{flex-shrink:0;}.flex-col{flex-direction:column;}.flex-wrap{flex-wrap:wrap;}.table{display:table;}.-translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(calc(100% + 16px) * -1);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-translate-x-1\\/2{--un-translate-x:-50%;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-\\[calc\\(100\\%_\\+_1rem\\)\\]{--un-translate-x:calc(100% + 16px);transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-0{--un-translate-x:0;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.translate-x-5{--un-translate-x:20px;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.-rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:-90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.rotate-90{--un-rotate-x:0;--un-rotate-y:0;--un-rotate-z:0;--un-rotate:90deg;transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}.transform{transform:translateX(var(--un-translate-x)) translateY(var(--un-translate-y)) translateZ(var(--un-translate-z)) rotate(var(--un-rotate)) rotateX(var(--un-rotate-x)) rotateY(var(--un-rotate-y)) rotateZ(var(--un-rotate-z)) skewX(var(--un-skew-x)) skewY(var(--un-skew-y)) scaleX(var(--un-scale-x)) scaleY(var(--un-scale-y)) scaleZ(var(--un-scale-z));}@keyframes pulse{0%, 100% {opacity:1} 50% {opacity:.5}}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.animate-pulse{animation:pulse 2s cubic-bezier(0.4,0,.6,1) infinite;}.animate-spin{animation:spin 1s linear infinite;}.cursor-default{cursor:default;}.cursor-pointer{cursor:pointer;}.select-none{user-select:none;}.items-center{align-items:center;}.justify-center{justify-content:center;}.justify-between{justify-content:space-between;}.gap-y-1{grid-row-gap:4px;row-gap:4px;}.gap-y-2{grid-row-gap:8px;row-gap:8px;}.space-x-4>:not([hidden])~:not([hidden]){--un-space-x-reverse:0;margin-left:calc(16px * calc(1 - var(--un-space-x-reverse)));margin-right:calc(16px * var(--un-space-x-reverse));}.space-y-2>:not([hidden])~:not([hidden]){--un-space-y-reverse:0;margin-top:calc(8px * calc(1 - var(--un-space-y-reverse)));margin-bottom:calc(8px * var(--un-space-y-reverse));}.divide-y>:not([hidden])~:not([hidden]){--un-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--un-divide-y-reverse)));border-bottom-width:calc(1px * var(--un-divide-y-reverse));border-top-style:solid;border-bottom-style:solid;}.divide-\\$ud-border-secondary>:not([hidden])~:not([hidden]){border-color:var(--ud-border-secondary);}.border-\\$ud-border,.divide-\\$ud-border>:not([hidden])~:not([hidden]){border-color:var(--ud-border);}.overflow-auto{overflow:auto;}.overflow-hidden{overflow:hidden;}.overflow-y-overlay{overflow-y:overlay;}.overflow-y-scroll{overflow-y:scroll;}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.break-all{word-break:break-all;}.border,.border-1px{border-width:1px;}.border-2{border-width:2px;}.border-b{border-bottom-width:1px;}.border-gray-300{--un-border-opacity:1;border-color:rgba(209,213,219,var(--un-border-opacity));}.border-transparent{border-color:transparent;}.focus-within\\:border-indigo-500:focus-within,.focus\\:border-indigo-500:focus{--un-border-opacity:1;border-color:rgba(99,102,241,var(--un-border-opacity));}.border-b-\\$ud-border{border-bottom-color:var(--ud-border);}.rounded{border-radius:4px;}.rounded-full{border-radius:9999px;}.rounded-lg{border-radius:8px;}.rounded-md{border-radius:6px;}.border-none{border-style:none;}.bg-\\$ud-bg{background-color:var(--ud-bg);}.bg-\\$ud-bg-secondary{background-color:var(--ud-bg-secondary);}.bg-gray-200{--un-bg-opacity:1;background-color:rgba(229,231,235,var(--un-bg-opacity));}.bg-indigo-100{--un-bg-opacity:1;background-color:rgba(224,231,255,var(--un-bg-opacity));}.bg-indigo-500,.focus\\:bg-indigo-500:focus{--un-bg-opacity:1;background-color:rgba(99,102,241,var(--un-bg-opacity));}.bg-indigo-600,.focus\\:bg-indigo-600:focus,.hover\\:bg-indigo-600:hover{--un-bg-opacity:1;background-color:rgba(79,70,229,var(--un-bg-opacity));}.bg-transparent{background-color:transparent;}.bg-white{--un-bg-opacity:1;background-color:rgba(255,255,255,var(--un-bg-opacity));}.hover\\:bg-\\$ud-bg-hover:hover{background-color:var(--ud-bg-hover);}.hover\\:bg-indigo-200:hover{--un-bg-opacity:1;background-color:rgba(199,210,254,var(--un-bg-opacity));}.p-0{padding:0;}.p-1{padding:4px;}.p-2{padding:8px;}.p-3{padding:12px;}.p-4{padding:16px;}.px-2{padding-left:8px;padding-right:8px;}.px-3{padding-left:12px;padding-right:12px;}.px-4{padding-left:16px;padding-right:16px;}.py-0\\.25{padding-top:1px;padding-bottom:1px;}.py-0\\.5{padding-top:2px;padding-bottom:2px;}.py-1{padding-top:4px;padding-bottom:4px;}.py-10{padding-top:40px;padding-bottom:40px;}.py-2{padding-top:8px;padding-bottom:8px;}.pl-2\\.5{padding-left:10px;}.pl-3{padding-left:12px;}.pl-4{padding-left:16px;}.pr-1{padding-right:4px;}.pr-10{padding-right:40px;}.pr-2{padding-right:8px;}.pr-3{padding-right:12px;}.pr-4{padding-right:16px;}.pr-9{padding-right:36px;}.text-center{text-align:center;}.text-left{text-align:left;}.text-right{text-align:right;}.align-middle{vertical-align:middle;}.text-base{font-size:16px;line-height:24px;}.text-sm{font-size:14px;line-height:20px;}.text-xs{font-size:12px;line-height:16px;}.font-medium{font-weight:500;}.font-normal{font-weight:400;}.font-semibold{font-weight:600;}.uppercase{text-transform:uppercase;}.focus\\:text-white:focus,.hover\\:text-white:hover,.text-white{--un-text-opacity:1;color:rgba(255,255,255,var(--un-text-opacity));}.group:focus .group-focus\\:text-\\$ud-text,.hover\\:text-\\$ud-text:hover,.text-\\$ud-text{color:var(--ud-text);}.hover\\:text-indigo-500:hover,.text-indigo-500{--un-text-opacity:1;color:rgba(99,102,241,var(--un-text-opacity));}.hover\\:text-indigo-900:hover{--un-text-opacity:1;color:rgba(49,46,129,var(--un-text-opacity));}.text-\\$ud-text-secondary{color:var(--ud-text-secondary);}.text-indigo-400{--un-text-opacity:1;color:rgba(129,140,248,var(--un-text-opacity));}.text-indigo-600{--un-text-opacity:1;color:rgba(79,70,229,var(--un-text-opacity));}.text-indigo-700{--un-text-opacity:1;color:rgba(67,56,202,var(--un-text-opacity));}.text-transparent{color:transparent;}.underline{text-decoration-line:underline;}.underline-\\$ud-border{-webkit-text-decoration-color:var(--ud-border);text-decoration-color:var(--ud-border);}.opacity-0{opacity:0;}.opacity-100{opacity:1;}.opacity-25{opacity:0.25;}.opacity-75{opacity:0.75;}.shadow{--un-shadow:var(--un-shadow-inset) 0 1px 3px 0 var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 1px 2px -1px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-lg{--un-shadow:var(--un-shadow-inset) 0 10px 15px -3px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 4px 6px -4px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-md{--un-shadow:var(--un-shadow-inset) 0 4px 6px -1px var(--un-shadow-color, rgba(0,0,0,0.1)),var(--un-shadow-inset) 0 2px 4px -2px var(--un-shadow-color, rgba(0,0,0,0.1));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.shadow-sm{--un-shadow:var(--un-shadow-inset) 0 1px 2px 0 var(--un-shadow-color, rgba(0,0,0,0.05));box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:outline-none:focus{outline:2px solid transparent;outline-offset:2px;}.focus-within\\:ring-2:focus-within,.focus\\:ring-2:focus{--un-ring-width:2px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.focus\\:ring-1:focus,.ring-1{--un-ring-width:1px;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.ring-0{--un-ring-width:0;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color);--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color);box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow);}.ring-none\\!{--un-ring-width:0 !important;--un-ring-offset-shadow:var(--un-ring-inset) 0 0 0 var(--un-ring-offset-width) var(--un-ring-offset-color) !important;--un-ring-shadow:var(--un-ring-inset) 0 0 0 calc(var(--un-ring-width) + var(--un-ring-offset-width)) var(--un-ring-color) !important;box-shadow:var(--un-ring-offset-shadow), var(--un-ring-shadow), var(--un-shadow) !important;}.focus\\:ring-offset-2:focus{--un-ring-offset-width:2px;}.focus-within\\:ring-indigo-500:focus-within,.focus\\:ring-indigo-500:focus{--un-ring-opacity:1;--un-ring-color:rgba(99,102,241,var(--un-ring-opacity));}.ring-black{--un-ring-opacity:1;--un-ring-color:rgba(0,0,0,var(--un-ring-opacity));}.ring-opacity-5{--un-ring-opacity:0.05;}.filter{filter:var(--un-blur) var(--un-brightness) var(--un-contrast) var(--un-drop-shadow) var(--un-grayscale) var(--un-hue-rotate) var(--un-invert) var(--un-saturate) var(--un-sepia);}.transition{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-colors{transition-property:color,background-color,border-color,outline-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms;}.duration-100{transition-duration:100ms;}.duration-200{transition-duration:200ms;}.ease-in{transition-timing-function:cubic-bezier(0.4, 0, 1, 1);}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);}.ease-out{transition-timing-function:cubic-bezier(0, 0, 0.2, 1);}@media (min-width: 640px){.sm\\:text-sm{font-size:14px;line-height:20px;}}`;
   const reset = '/*\nPlease read: https://github.com/antfu/unocss/blob/main/packages/reset/tailwind-compat.md\n*/\n\n/*\n1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)\n2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)\n*/\n\n*,\n::before,\n::after {\n  box-sizing: border-box; /* 1 */\n  border-width: 0; /* 2 */\n  border-style: solid; /* 2 */\n  border-color: #e5e7eb; /* 2 */\n}\n\n/*\n1. Use a consistent sensible line-height in all browsers.\n2. Prevent adjustments of font size after orientation changes in iOS.\n3. Use a more readable tab size.\n4. Use the user\'s configured `sans` font-family by default.\n*/\n\nhtml {\n  line-height: 1.5; /* 1 */\n  -webkit-text-size-adjust: 100%; /* 2 */\n  -moz-tab-size: 4; /* 3 */\n  tab-size: 4; /* 3 */\n  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; /* 4 */\n}\n\n/*\n1. Remove the margin in all browsers.\n2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.\n*/\n\nbody {\n  margin: 0; /* 1 */\n  line-height: inherit; /* 2 */\n}\n\n/*\n1. Add the correct height in Firefox.\n2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)\n3. Ensure horizontal rules are visible by default.\n*/\n\nhr {\n  height: 0; /* 1 */\n  color: inherit; /* 2 */\n  border-top-width: 1px; /* 3 */\n}\n\n/*\nAdd the correct text decoration in Chrome, Edge, and Safari.\n*/\n\nabbr:where([title]) {\n  text-decoration: underline dotted;\n}\n\n/*\nRemove the default font size and weight for headings.\n*/\n\nh1,\nh2,\nh3,\nh4,\nh5,\nh6 {\n  font-size: inherit;\n  font-weight: inherit;\n}\n\n/*\nReset links to optimize for opt-in styling instead of opt-out.\n*/\n\na {\n  color: inherit;\n  text-decoration: inherit;\n}\n\n/*\nAdd the correct font weight in Edge and Safari.\n*/\n\nb,\nstrong {\n  font-weight: bolder;\n}\n\n/*\n1. Use the user\'s configured `mono` font family by default.\n2. Correct the odd `em` font sizing in all browsers.\n*/\n\ncode,\nkbd,\nsamp,\npre {\n  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 1 */\n  font-size: 1em; /* 2 */\n}\n\n/*\nAdd the correct font size in all browsers.\n*/\n\nsmall {\n  font-size: 80%;\n}\n\n/*\nPrevent `sub` and `sup` elements from affecting the line height in all browsers.\n*/\n\nsub,\nsup {\n  font-size: 75%;\n  line-height: 0;\n  position: relative;\n  vertical-align: baseline;\n}\n\nsub {\n  bottom: -0.25em;\n}\n\nsup {\n  top: -0.5em;\n}\n\n/*\n1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)\n2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)\n3. Remove gaps between table borders by default.\n*/\n\ntable {\n  text-indent: 0; /* 1 */\n  border-color: inherit; /* 2 */\n  border-collapse: collapse; /* 3 */\n}\n\n/*\n1. Change the font styles in all browsers.\n2. Remove the margin in Firefox and Safari.\n3. Remove default padding in all browsers.\n*/\n\nbutton,\ninput,\noptgroup,\nselect,\ntextarea {\n  font-family: inherit; /* 1 */\n  font-size: 100%; /* 1 */\n  font-weight: inherit; /* 1 */\n  line-height: inherit; /* 1 */\n  color: inherit; /* 1 */\n  margin: 0; /* 2 */\n  padding: 0; /* 3 */\n}\n\n/*\nRemove the inheritance of text transform in Edge and Firefox.\n*/\n\nbutton,\nselect {\n  text-transform: none;\n}\n\n/*\n1. Correct the inability to style clickable types in iOS and Safari.\n2. Remove default button styles.\n*/\n\nbutton,\n[type=\'button\'],\n[type=\'reset\'],\n[type=\'submit\'] {\n  -webkit-appearance: button; /* 1 */\n  /*will affect the button style of most component libraries, so disable it*/\n  /*https://github.com/unocss/unocss/issues/2127*/\n  /*background-color: transparent; !* 2 *!*/\n  background-image: none; /* 2 */\n}\n\n/*\nUse the modern Firefox focus style for all focusable elements.\n*/\n\n:-moz-focusring {\n  outline: auto;\n}\n\n/*\nRemove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)\n*/\n\n:-moz-ui-invalid {\n  box-shadow: none;\n}\n\n/*\nAdd the correct vertical alignment in Chrome and Firefox.\n*/\n\nprogress {\n  vertical-align: baseline;\n}\n\n/*\nCorrect the cursor style of increment and decrement buttons in Safari.\n*/\n\n::-webkit-inner-spin-button,\n::-webkit-outer-spin-button {\n  height: auto;\n}\n\n/*\n1. Correct the odd appearance in Chrome and Safari.\n2. Correct the outline style in Safari.\n*/\n\n[type=\'search\'] {\n  -webkit-appearance: textfield; /* 1 */\n  outline-offset: -2px; /* 2 */\n}\n\n/*\nRemove the inner padding in Chrome and Safari on macOS.\n*/\n\n::-webkit-search-decoration {\n  -webkit-appearance: none;\n}\n\n/*\n1. Correct the inability to style clickable types in iOS and Safari.\n2. Change font properties to `inherit` in Safari.\n*/\n\n::-webkit-file-upload-button {\n  -webkit-appearance: button; /* 1 */\n  font: inherit; /* 2 */\n}\n\n/*\nAdd the correct display in Chrome and Safari.\n*/\n\nsummary {\n  display: list-item;\n}\n\n/*\nRemoves the default spacing and border for appropriate elements.\n*/\n\nblockquote,\ndl,\ndd,\nh1,\nh2,\nh3,\nh4,\nh5,\nh6,\nhr,\nfigure,\np,\npre {\n  margin: 0;\n}\n\nfieldset {\n  margin: 0;\n  padding: 0;\n}\n\nlegend {\n  padding: 0;\n}\n\nol,\nul,\nmenu {\n  list-style: none;\n  margin: 0;\n  padding: 0;\n}\n\n/*\nPrevent resizing textareas horizontally by default.\n*/\n\ntextarea {\n  resize: vertical;\n}\n\n/*\n1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)\n2. Set the default placeholder color to the user\'s configured gray 400 color.\n*/\n\ninput::placeholder,\ntextarea::placeholder {\n  opacity: 1; /* 1 */\n  color: #9ca3af; /* 2 */\n}\n\n/*\nSet the default cursor for buttons.\n*/\n\nbutton,\n[role="button"] {\n  cursor: pointer;\n}\n\n/*\nMake sure disabled buttons don\'t get the pointer cursor.\n*/\n:disabled {\n  cursor: default;\n}\n\n/*\n1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)\n2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)\n   This can trigger a poorly considered lint error in some tools but is included by design.\n*/\n\nimg,\nsvg,\nvideo,\ncanvas,\naudio,\niframe,\nembed,\nobject {\n  display: block; /* 1 */\n  vertical-align: middle; /* 2 */\n}\n\n/*\nConstrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)\n*/\n\nimg,\nvideo {\n  max-width: 100%;\n  height: auto;\n}\n\n/* Make elements with the HTML hidden attribute stay hidden by default */\n[hidden] {\n  display: none;\n}\n\n';
   const zh = {
     "tip": (ctx) => {
