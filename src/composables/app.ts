@@ -9,7 +9,7 @@ const defaultSettings: UserjsDiggerSettings = {
 
 const toString = Object.prototype.toString;
 
-export const useUserjsDiggerSettings = () => {
+export const useUserjsDiggerSettings = createGlobalState(() => {
   const settings = useGMStorage('ud_settings', defaultSettings);
 
   Object.entries(settings.value).forEach(([key, value]) => {
@@ -23,4 +23,4 @@ export const useUserjsDiggerSettings = () => {
     }
   });
   return settings;
-};
+});
