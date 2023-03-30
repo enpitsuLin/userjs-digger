@@ -21,7 +21,8 @@
   "nsfw": "NSFW",
   "nsfw-desc": "Show Sleazyfork's result in list",
   "filter": "Filter",
-  "filter-desc": "Filter user script with specific content in title",
+  "filter-desc": "Filter user script with specific content in title or specific developer",
+  "filter-tips": "use title: to filter title or author: for developer, title for default",
   "time-ago": {
     "just-now": "just now",
     "past": "{n} ago",

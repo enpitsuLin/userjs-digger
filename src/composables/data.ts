@@ -1,5 +1,6 @@
 import { AfterFetchContext, MaybeRef, UseFetchOptions } from '@vueuse/core';
 import psl from 'psl';
+import { getTypedFilter } from '../utils/filter';
 
 export type GreasyforkScriptUser = {
   id: number;
@@ -97,7 +98,11 @@ export function useDataList() {
         settings.value.nsfw ? sleazyfork.value ?? [] : []
       ) ?? []
     ).filter((item) =>
-      settings.value.filter.every((keywords) => !item.name.includes(keywords))
+      settings.value.filter.every((keywords) => {
+        const filter = getTypedFilter(keywords);
+        if (filter.type === 'title') return !filter.regexp.test(item.name);
+        else return item.users.every((user) => !filter.regexp.test(user.name));
+      })
     );
   });
 

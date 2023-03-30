@@ -46,6 +46,7 @@
           <p class="text-sm font-medium">{{ t('filter') }}</p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             {{ t('filter-desc') }}
+            <span class="underline cursor-help" :title="t('filter-tips')">(?)</span>
           </p>
         </div>
         <TagsInput v-model:tags="settings.filter" />
