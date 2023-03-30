@@ -30,21 +30,14 @@
 
   const { width, height } = useWindowSize();
 
-  const storePosition = computed<Position>({
-    get: () => {
-      const x = GM_getValue('ud_position_x', width.value - 64);
-      const y = GM_getValue('ud_position_y', height.value - 64);
-      return { x, y };
-    },
-    set(v) {
-      GM_setValue('ud_position_x', v.x);
-      GM_setValue('ud_position_y', v.y);
-    }
+  const position = useGMStorage<Position>('ud_position', {
+    x: width.value - 64,
+    y: height.value - 64
   });
 
   const time = ref(+new Date());
   const { isDragging, x, y, style } = useDraggable(fab, {
-    initialValue: storePosition,
+    initialValue: position,
     preventDefault: true,
     onStart: () => {
       time.value = +new Date();
@@ -61,7 +54,7 @@
   watchDebounced(
     () => ({ x: x.value, y: y.value }),
     (val) => {
-      storePosition.value = val;
+      position.value = val;
     },
     { debounce: 500, deep: true }
   );
