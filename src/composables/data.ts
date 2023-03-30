@@ -121,7 +121,7 @@ export function useDataList(host: MaybeComputedRef<string>) {
 
   const isLoading = computed(() => {
     if (settings.value.nsfw)
-      return isFetching.value && isSleazyforkFetching.value;
+      return isFetching.value || isSleazyforkFetching.value;
     return isFetching.value;
   });
 
