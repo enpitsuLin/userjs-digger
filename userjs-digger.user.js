@@ -1,11 +1,15 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.6.0
+// @version      0.6.1
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
 // @icon         https://user-images.githubusercontent.com/29378026/227717136-4c9dfba4-0f90-41a2-905a-4cf19e751b5c.png
+// @homepage     https://github.com/enpitsulin/userjs-digger#readme
+// @homepageURL  https://github.com/enpitsulin/userjs-digger#readme
+// @website      https://enpitsulin.xyz
+// @source       https://github.com/enpitsulin/userjs-digger.git
 // @include      *
 // @require      https://unpkg.com/vue@3.2.47/dist/vue.global.prod.js
 // @require      https://unpkg.com/psl@1.9.0/dist/psl.min.js
