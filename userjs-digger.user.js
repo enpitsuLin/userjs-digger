@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Userjs digger
 // @namespace    userjs-digger
-// @version      0.6.1
+// @version      0.6.2
 // @author       enpitsulin <enpitsulin@gmail.com>
 // @description  Show all userjs available in current site
 // @license      MIT
@@ -194,6 +194,18 @@
       on,
       off,
       trigger
+    };
+  }
+  function createGlobalState(stateFactory) {
+    let initialized = false;
+    let state;
+    const scope = vue.effectScope(true);
+    return (...args) => {
+      if (!initialized) {
+        state = scope.run(() => stateFactory(...args));
+        initialized = true;
+      }
+      return state;
     };
   }
   function useThrottleFn(fn, ms = 200, trailing = false, leading = true, rejectOnCancel = false) {
@@ -1974,7 +1986,7 @@
     debugger: false
   };
   const toString = Object.prototype.toString;
-  const useUserjsDiggerSettings = () => {
+  const useUserjsDiggerSettings = createGlobalState(() => {
     const settings2 = useGMStorage("ud_settings", defaultSettings);
     Object.entries(settings2.value).forEach(([key, value]) => {
       if (toString.call(value) !== toString.call(defaultSettings[key])) {
@@ -1982,7 +1994,7 @@
       }
     });
     return settings2;
-  };
+  });
   const AUTHOR_REGEX = /^author:(\S+)$/;
   const TITLE_REGEX = /^title:(\S+)$/;
   function isAuthorFilter(filter) {
@@ -2078,7 +2090,7 @@
     });
     const isLoading = vue.computed(() => {
       if (settings2.value.nsfw)
-        return isFetching.value && isSleazyforkFetching.value;
+        return isFetching.value || isSleazyforkFetching.value;
       return isFetching.value;
     });
     const execute = () => {
@@ -2234,20 +2246,13 @@
       const fab = vue.ref(null);
       const { width: fabWidth, height: fabHeight } = useElementBounding(fab);
       const { width, height } = useWindowSize();
-      const storePosition = vue.computed({
-        get: () => {
-          const x2 = _GM_getValue("ud_position_x", width.value - 64);
-          const y2 = _GM_getValue("ud_position_y", height.value - 64);
-          return { x: x2, y: y2 };
-        },
-        set(v) {
-          _GM_setValue("ud_position_x", v.x);
-          _GM_setValue("ud_position_y", v.y);
-        }
+      const position = useGMStorage("ud_position", {
+        x: width.value - 64,
+        y: height.value - 64
       });
       const time = vue.ref(+/* @__PURE__ */ new Date());
       const { isDragging, x, y, style: style2 } = useDraggable(fab, {
-        initialValue: storePosition,
+        initialValue: position,
         preventDefault: true,
         onStart: () => {
           time.value = +/* @__PURE__ */ new Date();
@@ -2262,7 +2267,7 @@
       watchDebounced(
         () => ({ x: x.value, y: y.value }),
         (val) => {
-          storePosition.value = val;
+          position.value = val;
         },
         { debounce: 500, deep: true }
       );
