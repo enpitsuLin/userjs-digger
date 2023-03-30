@@ -32,7 +32,7 @@
   const searchInput = ref<HTMLInputElement>();
 
   const onSearchEnter = () => {
-    console.log(searchSite.value);
+    toggleSearch(false);
     execute();
   };
 

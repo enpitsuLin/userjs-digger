@@ -1,5 +1,5 @@
 {
-  "tip": "发现{count}个脚本适用于当前网站 {host}",
+  "tip": "发现{count}个脚本适用于网站 {host}",
   "table": {
     "toggle-expand": "展开更多",
     "title": "脚本标题",
