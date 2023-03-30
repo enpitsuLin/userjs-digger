@@ -6,6 +6,11 @@
   "version": "0.6.0",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enpitsulin/userjs-digger.git"
+  },
+  "homepage": "https://github.com/enpitsulin/userjs-digger#readme",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

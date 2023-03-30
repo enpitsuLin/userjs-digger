@@ -39,8 +39,10 @@ export default defineConfig(async ({ command }) => {
         userscript: {
           namespace: 'userjs-digger',
           name: 'Userjs digger',
+          homepage: pkg.homepage,
           version: pkg.version,
           description: pkg.description,
+          website: 'https://enpitsulin.xyz',
           author: pkg.author,
           include: ['*'],
           grant: ['GM_xmlhttpRequest'],
@@ -53,7 +55,10 @@ export default defineConfig(async ({ command }) => {
           externalGlobals: [
             ['vue', cdn.unpkg('Vue', 'dist/vue.global.prod.js')],
             ['psl', cdn.unpkg('psl', 'dist/psl.min.js')],
-            ['vue-i18n', cdn.unpkg('VueI18n', 'dist/vue-i18n.runtime.global.js')]
+            [
+              'vue-i18n',
+              cdn.unpkg('VueI18n', 'dist/vue-i18n.runtime.global.js')
+            ]
           ]
         }
       })
