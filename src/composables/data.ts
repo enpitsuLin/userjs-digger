@@ -1,4 +1,9 @@
-import { AfterFetchContext, MaybeRef, UseFetchOptions } from '@vueuse/core';
+import {
+  AfterFetchContext,
+  MaybeComputedRef,
+  MaybeRef,
+  UseFetchOptions
+} from '@vueuse/core';
 import psl from 'psl';
 import { getTypedFilter } from '../utils/filter';
 
@@ -34,11 +39,15 @@ export type GreasyforkScript = {
 };
 
 export function useGreasyfork(
-  site = 'https://greasyfork.org',
-  immediate = true
+  host: MaybeComputedRef<string>,
+  { site, immediate }: { site?: string; immediate?: boolean } = {
+    site: 'https://greasyfork.org',
+    immediate: true
+  }
 ) {
-  const host = psl.get(window.location.hostname);
-  const apiEndpoint = `${site}/scripts/by-site/${host}.json`;
+  const apiEndpoint = computed(
+    () => `${site}/scripts/by-site/${unref(host)}.json`
+  );
   const fetch = unsafeWindow.fetch;
   const afterFetch = async ({
     data: prevData,
@@ -49,7 +58,7 @@ export function useGreasyfork(
     if (prevData?.length === 50) {
       const prevPage =
         Number(new URL(response.url).searchParams.get('page')) || 1;
-      const nextPage = `${apiEndpoint}?page=${prevPage + 1}`;
+      const nextPage = `${apiEndpoint.value}?page=${prevPage + 1}`;
       const { data, execute } = useFetch(nextPage, {
         fetch,
         immediate: false,
@@ -74,19 +83,23 @@ export function useGreasyfork(
   }).json<GreasyforkScript[]>();
 }
 
-export function useDataList() {
+export function useDataList(host: MaybeComputedRef<string>) {
   const settings = useUserjsDiggerSettings();
-  const { data: greasyfork, isFetching } = useGreasyfork();
+  const {
+    data: greasyfork,
+    isFetching,
+    execute: executeGreasyfork
+  } = useGreasyfork(host);
   const {
     data: sleazyfork,
-    execute,
+    execute: executeSleazyfork,
     isFetching: isSleazyforkFetching
-  } = useGreasyfork('https://sleazyfork.org', false);
+  } = useGreasyfork(host, { site: 'https://sleazyfork.org', immediate: false });
   watch(
     () => settings.value.nsfw,
     (val) => {
       if (val) {
-        if (!sleazyfork.value) execute();
+        if (!sleazyfork.value) executeSleazyfork();
       }
     },
     { immediate: true }
@@ -112,5 +125,14 @@ export function useDataList() {
     return isFetching.value;
   });
 
-  return { data, isLoading };
+  const execute = () => {
+    greasyfork.value = [];
+    sleazyfork.value = [];
+    executeGreasyfork();
+    if (settings.value.nsfw) {
+      executeSleazyfork();
+    }
+  };
+
+  return { data, isLoading, execute };
 }
