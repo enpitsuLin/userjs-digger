@@ -1,10 +1,4 @@
-import {
-  AfterFetchContext,
-  MaybeComputedRef,
-  MaybeRef,
-  UseFetchOptions
-} from '@vueuse/core';
-import psl from 'psl';
+import { AfterFetchContext, MaybeComputedRef } from '@vueuse/core';
 import { getTypedFilter } from '../utils/filter';
 
 export type GreasyforkScriptUser = {
@@ -38,6 +32,8 @@ export type GreasyforkScript = {
   version: string;
 };
 
+const cacheData = new Map<string, GreasyforkScript[]>();
+
 export function useGreasyfork(
   host: MaybeComputedRef<string>,
   { site, immediate }: { site?: string; immediate?: boolean } = {
@@ -46,7 +42,7 @@ export function useGreasyfork(
   }
 ) {
   const apiEndpoint = computed(
-    () => `${site}/scripts/by-site/${unref(host)}.json`
+    () => `${site}/scripts/by-site/${resolveUnref(host)}.json`
   );
   const fetch = unsafeWindow.fetch;
   const afterFetch = async ({
@@ -68,10 +64,7 @@ export function useGreasyfork(
 
       return {
         response: new Response(),
-        data: prevData?.concat(
-          data.value?.filter((i) => !!prevData.find((li) => i.id !== li.id)) ??
-            []
-        )
+        data: prevData?.concat(data.value ?? [])
       };
     }
     return { data: prevData };
