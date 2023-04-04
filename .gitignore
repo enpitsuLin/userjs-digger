@@ -22,6 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-src/auto-import.d.ts
-src/components.d.ts
