@@ -1,5 +1,5 @@
 import { AfterFetchContext, MaybeComputedRef } from '@vueuse/core';
-import { getTypedFilter } from '../utils/filter';
+import { getTypedFilter } from '@userjs-digger/utils';
 
 export type GreasyforkScriptUser = {
   id: number;
