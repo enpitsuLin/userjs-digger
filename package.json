@@ -4,6 +4,7 @@
   "private": true,
   "description": "userjs-digger's monorepo",
   "main": "index.js",
+  "packageManager": "pnpm@7.22.0",
   "scripts": {
     "build": "rm -rf packages/*/dist &&pnpm run --filter \"./packages/{utils,userscript}\"  build"
   },
