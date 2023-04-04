@@ -4,8 +4,8 @@ import { createI18n } from 'vue-i18n';
 import App from './App.vue';
 import unocss from 'uno.css?raw';
 import reset from '@unocss/reset/tailwind-compat.css?raw';
-import zh from './locales/zh.json';
-import en from './locales/en.json';
+import zh from '@userjs-digger/locales/zh.json';
+import en from '@userjs-digger/locales/en.json';
 
 const settings = useUserjsDiggerSettings();
 

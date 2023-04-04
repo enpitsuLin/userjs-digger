@@ -18,13 +18,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@userjs-digger/locales": "workspace:*",
+    "@userjs-digger/utils": "workspace:*",
     "@vueuse/core": "10.0.0-beta.1",
     "psl": "^1.9.0",
     "punycode": "^2.3.0",
     "unplugin-auto-import": "^0.15.2",
     "vue": "^3.2.47",
-    "vue-i18n": "^9.2.2",
-    "@userjs-digger/utils": "workspace:*"
+    "vue-i18n": "^9.2.2"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.1.16",
