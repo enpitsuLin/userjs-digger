@@ -23,6 +23,7 @@ importers:
       '@julr/unocss-preset-forms': ^0.0.5
       '@types/psl': ^1.1.0
       '@unocss/preset-rem-to-px': ^0.50.6
+      '@userjs-digger/locales': workspace:*
       '@userjs-digger/utils': workspace:*
       '@vitejs/plugin-vue': ^4.1.0
       '@vue/runtime-core': ^3.2.47
@@ -40,6 +41,7 @@ importers:
       vue-i18n: ^9.2.2
       vue-tsc: ^1.2.0
     dependencies:
+      '@userjs-digger/locales': link:../locales
       '@userjs-digger/utils': link:../utils
       '@vueuse/core': 10.0.0-beta.1_vue@3.2.47
       psl: 1.9.0
