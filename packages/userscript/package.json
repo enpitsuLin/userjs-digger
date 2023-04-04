@@ -1,5 +1,5 @@
 {
-  "name": "userjs-digger",
+  "name": "@userjs-digger/userscript",
   "description": "Show all userjs available in current site",
   "author": "enpitsulin <enpitsulin@gmail.com>",
   "private": true,
