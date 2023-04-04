@@ -1,7 +1,7 @@
 {
   "name": "@userjs-digger/utils",
   "private": true,
-  "version": "n/a",
+  "version": "0.0.1",
   "description": "",
   "type": "module",
   "exports": {
