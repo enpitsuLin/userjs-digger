@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-dept: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: pnpm/action-setup@v2.2.4
+        with:
+          version: latest
+          run_install: false
+
+      - name: install dependencies
+        run: pnpm i
+
+      - name: Build script
+        run: pnpm build
+
+      - name: Deploy to gh_page
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: packages/userscript/dist # The folder the action should deploy.
+
+      - run: pnpm dlx changelogithub
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
