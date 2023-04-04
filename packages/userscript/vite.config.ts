@@ -28,7 +28,7 @@ export default defineConfig(async ({ command }) => {
         // locale messages resource pre-compile option
         include: resolve(
           dirname(fileURLToPath(import.meta.url)),
-          './src/locales/**'
+          '../locales/*.json'
         )
       }),
       UnocssPlugin,
