@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "unbuild",
-    "stub": "unbuild --stub"
+    "stub": "unbuild --stub",
+    "postinstall": "pnpm build"
   },
   "devDependencies": {
     "unbuild": "^1.2.1"
