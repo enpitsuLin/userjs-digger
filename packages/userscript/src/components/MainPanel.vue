@@ -77,7 +77,7 @@
           v-model="searchSite"
           type="text"
           class="bg-$ud-bg text-sm p-0 border-none rounded-sm px-1 w-full"
-          placeholder="search user script for website"
+          :placeholder="$t('search-placeholder')"
           @click.stop
           @keypress.enter="onSearchEnter()"
         />

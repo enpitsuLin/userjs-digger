@@ -23,6 +23,7 @@
   "filter": "Filter",
   "filter-desc": "Filter user script with specific content in title or specific developer",
   "filter-tips": "use title: to filter title or author: for developer, title for default",
+  "search-placeholder": "Search user script for website",
   "time-ago": {
     "just-now": "just now",
     "past": "{n} ago",

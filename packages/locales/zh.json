@@ -23,6 +23,7 @@
   "filter": "过滤",
   "filter-desc": "过滤标题含有指定内容或指定开发者的用户脚本",
   "filter-tips": "使用title:过滤标题或是author:指定开发者,没有相关描述则默认过滤标题,支持正则表达式",
+  "search-placeholder": "为指定网站搜索用户脚本",
   "time-ago": {
     "just-now": "就在刚刚",
     "past": "{n}前",
