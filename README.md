@@ -18,7 +18,7 @@ Which user script manager you can use depends on which browser you use.
 - Firefox: [Greasemonkey](https://addons.mozilla.org/firefox/addon/greasemonkey/), [Tampermonkey](https://addons.mozilla.org/firefox/addon/tampermonkey/), or [Violentmonkey](https://addons.mozilla.org/firefox/addon/violentmonkey/)
 - Edge: [Tampermonkey](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd) or [Violentmonkey](https://microsoftedge.microsoft.com/addons/detail/violentmonkey/eeagobfjdenkkddmbclomhiblgggliao)
 
-Then, you can install this script in [greasyfork](https://greasyfork.org/zh-CN/scripts/462535-userjs-digger) or [github page](https://enpitsuLin.github.io/userjs-digger/userjs-digger.user.js)
+Then, you can install this script in [Greasyfork](https://greasyfork.org/zh-CN/scripts/462535-userjs-digger) or [Github Page](https://enpitsulin.github.io/userjs-digger/@userjs-digger/userscript.user.js)
 
 ## Preview
 
