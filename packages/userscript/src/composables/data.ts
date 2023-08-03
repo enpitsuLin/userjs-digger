@@ -1,5 +1,6 @@
-import { AfterFetchContext, MaybeComputedRef } from '@vueuse/core';
+import { AfterFetchContext } from '@vueuse/core';
 import { getTypedFilter } from '@userjs-digger/utils';
+import { MaybeRefOrGetter } from 'vue';
 
 export type GreasyforkScriptUser = {
   id: number;
@@ -35,7 +36,7 @@ export type GreasyforkScript = {
 const cacheData = new Map<string, GreasyforkScript[]>();
 
 export function useGreasyfork(
-  host: MaybeComputedRef<string>,
+  host: MaybeRefOrGetter<string>,
   { site, immediate }: { site?: string; immediate?: boolean } = {
     site: 'https://greasyfork.org',
     immediate: true
@@ -76,7 +77,7 @@ export function useGreasyfork(
   }).json<GreasyforkScript[]>();
 }
 
-export function useDataList(host: MaybeComputedRef<string>) {
+export function useDataList(host: MaybeRefOrGetter<string>) {
   const settings = useUserjsDiggerSettings();
   const {
     data: greasyfork,

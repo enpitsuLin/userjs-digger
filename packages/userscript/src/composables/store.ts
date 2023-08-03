@@ -1,4 +1,5 @@
-import { MaybeComputedRef, RemovableRef, StorageLike } from '@vueuse/core';
+import { RemovableRef, StorageLike } from '@vueuse/core';
+import { MaybeRefOrGetter } from 'vue';
 
 export const GMStorage: StorageLike = {
   getItem: function (key: string): string | null {
@@ -14,5 +15,5 @@ export const GMStorage: StorageLike = {
 
 export const useGMStorage = <T>(
   key: string,
-  defaults: MaybeComputedRef<T>
+  defaults: MaybeRefOrGetter<T>
 ): RemovableRef<T> => useStorage(key, defaults, GMStorage);
