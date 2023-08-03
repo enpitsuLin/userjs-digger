@@ -1,9 +1,9 @@
 {
   "name": "@userjs-digger/utils",
-  "private": true,
-  "version": "0.0.1",
-  "description": "",
   "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "",
   "exports": {
     ".": {
       "import": "./dist/index.mjs",

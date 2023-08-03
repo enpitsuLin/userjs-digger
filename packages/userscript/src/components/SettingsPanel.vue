@@ -1,3 +1,19 @@
+<script setup lang="ts">
+defineProps<{ show: boolean }>()
+const emit = defineEmits<{ (e: 'update:show', p: boolean): void }>()
+
+const dialog = ref(null)
+
+onClickOutside(dialog, () => {
+  emit('update:show', false)
+})
+
+const settings = useUserjsDiggerSettings()
+const enable = useSessionStorage('ud_show', true)
+
+const { t } = useI18n()
+</script>
+
 <template>
   <div
     v-if="show"
@@ -10,13 +26,15 @@
         class="ml-auto p-1 hover:bg-$ud-bg-hover rounded"
         @click="$emit('update:show', false)"
       >
-        <div class="i-carbon-close"></div>
+        <div class="i-carbon-close" />
       </div>
     </div>
     <ul class="divide-y divide-$ud-border px-4 py-2 h-60 overflow-y-scroll">
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ t('language') }}</p>
+          <p class="text-sm font-medium">
+            {{ t('language') }}
+          </p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             {{ t('language-desc') }}
           </p>
@@ -25,7 +43,9 @@
       </li>
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ t('enable') }}</p>
+          <p class="text-sm font-medium">
+            {{ t('enable') }}
+          </p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             {{ t('enable-desc') }}
           </p>
@@ -34,7 +54,9 @@
       </li>
       <li class="py-2 flex items-center justify-between space-x-4">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ t('nsfw') }}</p>
+          <p class="text-sm font-medium">
+            {{ t('nsfw') }}
+          </p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             {{ t('nsfw-desc') }}
           </p>
@@ -43,7 +65,9 @@
       </li>
       <li class="py-2 flex flex-col space-y-2">
         <div class="flex flex-col w-4/5 overflow-hidden">
-          <p class="text-sm font-medium">{{ t('filter') }}</p>
+          <p class="text-sm font-medium">
+            {{ t('filter') }}
+          </p>
           <p class="text-sm text-$ud-text-secondary text-xs">
             {{ t('filter-desc') }}
             <span class="underline cursor-help" :title="t('filter-tips')">(?)</span>
@@ -54,18 +78,3 @@
     </ul>
   </div>
 </template>
-<script setup lang="ts">
-  defineProps<{ show: boolean }>();
-  const emit = defineEmits<{ (e: 'update:show', p: boolean): void }>();
-
-  const dialog = ref(null);
-
-  onClickOutside(dialog, () => {
-    emit('update:show', false);
-  });
-
-  const settings = useUserjsDiggerSettings();
-  const enable = useSessionStorage('ud_show', true);
-
-  const { t } = useI18n();
-</script>

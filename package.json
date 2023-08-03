@@ -2,16 +2,16 @@
   "name": "userjs-digger",
   "version": "n/a",
   "private": true,
-  "description": "userjs-digger's monorepo",
-  "main": "index.js",
   "packageManager": "pnpm@8.6.11",
+  "description": "userjs-digger's monorepo",
+  "author": "enpitsulin <enpitsulin@gmail.com>",
+  "license": "MIT",
+  "keywords": [],
+  "main": "index.js",
   "scripts": {
     "dev:userscript": "pnpm -C=./packages/userscript dev",
     "build": "rm -rf packages/*/dist &&pnpm run --filter \"./packages/{utils,userscript}\"  build"
   },
-  "keywords": [],
-  "author": "enpitsulin <enpitsulin@gmail.com>",
-  "license": "MIT",
   "devDependencies": {
     "@antfu/eslint-config": "^0.40.0",
     "@commitlint/cli": "^17.6.7",

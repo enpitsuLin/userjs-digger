@@ -1,9 +1,9 @@
 <script setup lang="ts">
-  const collapse = ref(false);
+const collapse = ref(false)
 
-  const enable = useSessionStorage('ud_show', true);
+const enable = useSessionStorage('ud_show', true)
 
-  const [settingShow, toggleSettingShow] = useToggle(false);
+const [settingShow, toggleSettingShow] = useToggle(false)
 </script>
 
 <template>

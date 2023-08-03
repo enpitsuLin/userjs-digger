@@ -1,3 +1,67 @@
+<script setup lang="ts">
+const { locale, messages } = useI18n({ useScope: 'global' })
+const [show, toggleShow] = useToggle(false)
+
+const locales = computed(() => Object.keys(messages.value))
+
+function onChangeLocale(to: string) {
+  locale.value = to
+  toggleShow(false)
+}
+
+const button = ref<HTMLButtonElement | null>(null)
+
+const listbox = ref<HTMLUListElement | null>(null)
+
+const activedescendant = ref(0)
+
+function onKeyboardShow() {
+  toggleShow(true)
+  nextTick(() => {
+    (listbox.value?.children.item(0) as HTMLLIElement).focus()
+  })
+}
+
+function onKeyArrowUp(e: KeyboardEvent) {
+  activedescendant.value
+      = activedescendant.value - 1 < 0
+      ? locales.value.length - 1
+      : activedescendant.value - 1
+  const parentEl = (e.target as HTMLLIElement).parentElement
+  if (!parentEl)
+    return
+
+  (parentEl.children.item(activedescendant.value) as HTMLLIElement).focus()
+}
+
+function onKeyArrowDown(e: KeyboardEvent) {
+  activedescendant.value
+      = activedescendant.value + 1 > locales.value.length - 1
+      ? 0
+      : activedescendant.value + 1
+  const parentEl = (e.target as HTMLLIElement).parentElement
+  if (!parentEl)
+    return
+
+  (parentEl.children.item(activedescendant.value) as HTMLLIElement).focus()
+}
+
+function onLocaleEnter(to: string) {
+  onChangeLocale(to)
+  button.value?.focus()
+}
+
+function onEsc() {
+  toggleShow(false)
+  button.value?.focus()
+}
+
+const settings = useUserjsDiggerSettings()
+watch(locale, (val) => {
+  settings.value.locale = val as string
+})
+</script>
+
 <template>
   <div class="mt-1 relative">
     <button
@@ -15,7 +79,7 @@
       <span
         class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
       >
-        <div class="i-carbon-chevron-sort"></div>
+        <div class="i-carbon-chevron-sort" />
       </span>
     </button>
 
@@ -33,10 +97,11 @@
       >
         <li
           v-for="(lang, index) in locales"
+          :id="`listbox-option-${index + 1}`"
+          :key="lang"
           class="group text-$ud-text cursor-default select-none relative py-2 pl-3 pr-9 focus:text-white focus:bg-indigo-600 hover:text-white hover:bg-indigo-600"
           role="option"
           tabindex="0"
-          :id="`listbox-option-${index + 1}`"
           @click="onChangeLocale(lang)"
           @keydown.enter.prevent="onLocaleEnter(lang)"
           @keydown.arrow-up.prevent="onKeyArrowUp"
@@ -56,73 +121,10 @@
             v-if="lang === locale"
             class="text-indigo-600 group-focus:text-$ud-text hover:text-$ud-text absolute inset-y-0 right-0 flex items-center pr-4"
           >
-            <div class="i-carbon-checkmark"></div>
+            <div class="i-carbon-checkmark" />
           </span>
         </li>
       </ul>
     </Transition>
   </div>
 </template>
-<script setup lang="ts">
-  const { locale, messages } = useI18n({ useScope: 'global' });
-  const [show, toggleShow] = useToggle(false);
-
-  const locales = computed(() => Object.keys(messages.value));
-
-  const onChangeLocale = (to: string) => {
-    locale.value = to;
-    toggleShow(false);
-  };
-
-  const button = ref<HTMLButtonElement | null>(null);
-
-  const listbox = ref<HTMLUListElement | null>(null);
-
-  const activedescendant = ref(0);
-
-  const onKeyboardShow = () => {
-    toggleShow(true);
-    nextTick(() => {
-      (listbox.value?.children.item(0) as HTMLLIElement).focus();
-    });
-  };
-
-  const onKeyArrowUp = (e: KeyboardEvent) => {
-    activedescendant.value =
-      activedescendant.value - 1 < 0
-        ? locales.value.length - 1
-        : activedescendant.value - 1;
-    const parentEl = (e.target as HTMLLIElement).parentElement;
-    if (!parentEl) return;
-
-    activedescendant.value,
-      (parentEl.children.item(activedescendant.value) as HTMLLIElement).focus();
-  };
-
-  const onKeyArrowDown = (e: KeyboardEvent) => {
-    activedescendant.value =
-      activedescendant.value + 1 > locales.value.length - 1
-        ? 0
-        : activedescendant.value + 1;
-    const parentEl = (e.target as HTMLLIElement).parentElement;
-    if (!parentEl) return;
-
-    activedescendant.value,
-      (parentEl.children.item(activedescendant.value) as HTMLLIElement).focus();
-  };
-
-  const onLocaleEnter = (to: string) => {
-    onChangeLocale(to);
-    button.value?.focus();
-  };
-
-  const onEsc = () => {
-    toggleShow(false);
-    button.value?.focus();
-  };
-
-  const settings = useUserjsDiggerSettings();
-  watch(locale, (val) => {
-    settings.value.locale = val as string;
-  });
-</script>

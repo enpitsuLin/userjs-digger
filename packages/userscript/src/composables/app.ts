@@ -1,26 +1,26 @@
-export const useInjectContainer = () => inject<HTMLDivElement>('container')!;
+export const useInjectContainer = () => inject<HTMLDivElement>('container')!
 
 const defaultSettings: UserjsDiggerSettings = {
   locale: navigator.language ?? 'en',
   nsfw: false,
   filter: [],
-  debugger: false
-};
+  debugger: false,
+}
 
-const toString = Object.prototype.toString;
+const toString = Object.prototype.toString
 
 export const useUserjsDiggerSettings = createGlobalState(() => {
-  const settings = useGMStorage('ud_settings', defaultSettings);
+  const settings = useGMStorage('ud_settings', defaultSettings)
 
   Object.entries(settings.value).forEach(([key, value]) => {
     if (
-      toString.call(value) !==
-      toString.call(defaultSettings[key as keyof UserjsDiggerSettings])
+      toString.call(value)
+      !== toString.call(defaultSettings[key as keyof UserjsDiggerSettings])
     ) {
-      //@ts-expect-error
-      settings.value[key as keyof UserjsDiggerSettings] =
-        defaultSettings[key as keyof UserjsDiggerSettings];
+      // @ts-expect-error: ignore this
+      settings.value[key as keyof UserjsDiggerSettings]
+        = defaultSettings[key as keyof UserjsDiggerSettings]
     }
-  });
-  return settings;
-});
+  })
+  return settings
+})

@@ -1,19 +1,19 @@
-import { RemovableRef, StorageLike } from '@vueuse/core';
-import { MaybeRefOrGetter } from 'vue';
+import type { RemovableRef, StorageLike } from '@vueuse/core'
+import type { MaybeRefOrGetter } from 'vue'
 
 export const GMStorage: StorageLike = {
-  getItem: function (key: string): string | null {
-    return GM_getValue(key);
+  getItem(key: string): string | null {
+    return GM_getValue(key)
   },
-  setItem: function (key: string, value: string): void {
-    GM_setValue(key, value);
+  setItem(key: string, value: string): void {
+    GM_setValue(key, value)
   },
-  removeItem: function (key: string): void {
-    GM_deleteValue(key);
-  }
-};
+  removeItem(key: string): void {
+    GM_deleteValue(key)
+  },
+}
 
-export const useGMStorage = <T>(
-  key: string,
-  defaults: MaybeRefOrGetter<T>
-): RemovableRef<T> => useStorage(key, defaults, GMStorage);
+export function useGMStorage<T>(key: string,
+  defaults: MaybeRefOrGetter<T>): RemovableRef<T> {
+  return useStorage(key, defaults, GMStorage)
+}

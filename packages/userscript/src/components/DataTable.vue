@@ -1,3 +1,62 @@
+<script setup lang="ts">
+import { formatTimeAgoWithI18n } from '../utils/date'
+import type { GreasyforkScript } from '../composables/data'
+
+const props = defineProps<{ data: GreasyforkScript[]; loading: boolean }>()
+const expanded = ref<boolean[]>([])
+
+watchArray(
+  () => props.data,
+  () => {
+    expanded.value = Array.from({ length: props.data.length }, () => false)
+  },
+)
+function toggleExpand(i: number) {
+  expanded.value[i] = !expanded.value[i]
+}
+
+const sort = reactive({
+  updated: '' as '' | 'desc' | 'asc',
+  daily: '' as '' | 'desc' | 'asc',
+})
+
+const sortedData = useSorted(
+  computed(() => props.data),
+  (a, b) => {
+    if (sort.updated !== '') {
+      if (sort.updated === 'asc')
+        return +new Date(a.code_updated_at) - +new Date(b.code_updated_at)
+      return +new Date(b.code_updated_at) - +new Date(a.code_updated_at)
+    }
+    if (sort.daily === 'asc')
+      return a.daily_installs - b.daily_installs
+    return b.daily_installs - a.daily_installs
+  },
+)
+
+const { list, containerProps, wrapperProps } = useVirtualList(sortedData, {
+  itemHeight: (index) => {
+    if (expanded.value[index])
+      return 112
+    else return 32
+  },
+})
+
+function sortIcon(sort: '' | 'desc' | 'asc') {
+  if (sort === '')
+    return 'i-carbon-caret-sort'
+  return { desc: 'i-carbon-caret-sort-down', asc: 'i-carbon-caret-sort-up' }[
+    sort
+  ]
+}
+function onSortClick(key: 'daily' | 'updated') {
+  sort[key] = sort[key] === '' ? 'desc' : sort[key] === 'desc' ? 'asc' : ''
+  sort[key === 'daily' ? 'updated' : 'daily'] = ''
+}
+
+const { t } = useI18n()
+</script>
+
 <template>
   <div class="inline-block min-w-full align-middle">
     <div
@@ -25,7 +84,7 @@
                   {{ t('table.daily') }}
                 </div>
                 <div class="relative ml-0.5">
-                  <div :class="sortIcon(sort.daily)"></div>
+                  <div :class="sortIcon(sort.daily)" />
                 </div>
               </div>
             </th>
@@ -39,7 +98,7 @@
                   {{ t('table.update') }}
                 </div>
                 <div class="relative ml-0.5">
-                  <div :class="sortIcon(sort.updated)"></div>
+                  <div :class="sortIcon(sort.updated)" />
                 </div>
               </div>
             </th>
@@ -68,12 +127,12 @@
                     r="10"
                     stroke="currentColor"
                     stroke-width="4"
-                  ></circle>
+                  />
                   <path
                     class="opacity-75"
                     fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                  />
                 </svg>
               </div>
             </template>
@@ -82,7 +141,7 @@
                 {{ t('table.empty') }}
               </div>
             </template>
-            <template v-else v-for="item of list" :key="item.index">
+            <template v-for="item of list" v-else :key="item.index">
               <tr class="table w-full">
                 <td
                   class="w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer"
@@ -91,7 +150,7 @@
                   <div
                     class="i-carbon-chevron-right"
                     :class="expanded[item.index] && 'rotate-90'"
-                  ></div>
+                  />
                 </td>
                 <td
                   :title="item.data.name"
@@ -126,21 +185,31 @@
                   </a>
                 </td>
               </tr>
-              <tr class="table w-full" v-if="expanded[item.index]">
+              <tr v-if="expanded[item.index]" class="table w-full">
                 <td colspan="5" class="py-2">
                   <div class="mx-2">
                     <dl class="text-xs grid grid-cols-6 gap-y-2">
-                      <dt class="font-semibold">{{ t('table.version') }}</dt>
-                      <dd class="text-$ud-text">{{ item.data.version }}</dd>
-                      <dt class="font-semibold">{{ t('table.score') }}</dt>
-                      <dd class="text-$ud-text">{{ item.data.fan_score }}</dd>
+                      <dt class="font-semibold">
+                        {{ t('table.version') }}
+                      </dt>
+                      <dd class="text-$ud-text">
+                        {{ item.data.version }}
+                      </dd>
+                      <dt class="font-semibold">
+                        {{ t('table.score') }}
+                      </dt>
+                      <dd class="text-$ud-text">
+                        {{ item.data.fan_score }}
+                      </dd>
                       <dt class="font-semibold">
                         {{ t('table.total-installs') }}
                       </dt>
                       <dd class="text-$ud-text">
                         {{ item.data.total_installs.toLocaleString() }}
                       </dd>
-                      <dt class="font-semibold">{{ t('table.authors') }}</dt>
+                      <dt class="font-semibold">
+                        {{ t('table.authors') }}
+                      </dt>
                       <dd class="col-span-5 text-$ud-text">
                         <a
                           v-for="user in item.data.users"
@@ -169,59 +238,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-  import { formatTimeAgoWithI18n } from '../utils/date';
-  import { GreasyforkScript } from '../composables/data';
-
-  const props = defineProps<{ data: GreasyforkScript[]; loading: boolean }>();
-  const expanded = ref<boolean[]>([]);
-
-  watchArray(
-    () => props.data,
-    () => {
-      expanded.value = Array.from({ length: props.data.length }, () => false);
-    }
-  );
-  const toggleExpand = (i: number) => {
-    expanded.value[i] = !expanded.value[i];
-  };
-
-  const sort = reactive({
-    updated: '' as '' | 'desc' | 'asc',
-    daily: '' as '' | 'desc' | 'asc'
-  });
-
-  const sortedData = useSorted(
-    computed(() => props.data),
-    (a, b) => {
-      if (sort.updated !== '') {
-        if (sort.updated === 'asc')
-          return +new Date(a.code_updated_at) - +new Date(b.code_updated_at);
-        return +new Date(b.code_updated_at) - +new Date(a.code_updated_at);
-      }
-      if (sort.daily === 'asc') return a.daily_installs - b.daily_installs;
-      return b.daily_installs - a.daily_installs;
-    }
-  );
-
-  const { list, containerProps, wrapperProps } = useVirtualList(sortedData, {
-    itemHeight: (index) => {
-      if (expanded.value[index]) return 112;
-      else return 32;
-    }
-  });
-
-  const sortIcon = (sort: '' | 'desc' | 'asc') => {
-    if (sort === '') return 'i-carbon-caret-sort';
-    return { desc: 'i-carbon-caret-sort-down', asc: 'i-carbon-caret-sort-up' }[
-      sort
-    ];
-  };
-  const onSortClick = (key: 'daily' | 'updated') => {
-    sort[key] = sort[key] === '' ? 'desc' : sort[key] === 'desc' ? 'asc' : '';
-    sort[key === 'daily' ? 'updated' : 'daily'] = '';
-  };
-
-  const { t } = useI18n();
-</script>

@@ -1,25 +1,25 @@
-import { defineConfig, type Plugin } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import AutoImport from 'unplugin-auto-import/vite';
-import Component from 'unplugin-vue-components/vite';
-import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite';
-import monkey, { cdn, util } from 'vite-plugin-monkey';
-import Unocss from 'unocss/vite';
-import { UnocssBuildPlugin } from './plugins/build';
-import pkg from './package.json';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { type Plugin, defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import AutoImport from 'unplugin-auto-import/vite'
+import Component from 'unplugin-vue-components/vite'
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
+import monkey, { cdn, util } from 'vite-plugin-monkey'
+import Unocss from 'unocss/vite'
+import { UnocssBuildPlugin } from './plugins/build'
+import pkg from './package.json'
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command }) => {
-  const UnocssPlugin: Plugin[] =
-    command === 'serve' ? Unocss() : UnocssBuildPlugin();
+  const UnocssPlugin: Plugin[]
+    = command === 'serve' ? Unocss() : UnocssBuildPlugin()
   return {
     plugins: [
       AutoImport({
         imports: [util.unimportPreset, 'vue', '@vueuse/core', 'vue-i18n'],
         dts: 'src/auto-import.d.ts',
-        dirs: ['./src/composables/**']
+        dirs: ['./src/composables/**'],
       }),
       Component({ dts: 'src/components.d.ts' }),
 
@@ -28,8 +28,8 @@ export default defineConfig(async ({ command }) => {
         // locale messages resource pre-compile option
         include: resolve(
           dirname(fileURLToPath(import.meta.url)),
-          '../locales/*.json'
-        )
+          '../locales/*.json',
+        ),
       }),
       UnocssPlugin,
 
@@ -49,7 +49,7 @@ export default defineConfig(async ({ command }) => {
           connect: ['greasyfork.org'],
           noframes: true,
           license: 'MIT',
-          icon: 'https://user-images.githubusercontent.com/29378026/227717136-4c9dfba4-0f90-41a2-905a-4cf19e751b5c.png'
+          icon: 'https://user-images.githubusercontent.com/29378026/227717136-4c9dfba4-0f90-41a2-905a-4cf19e751b5c.png',
         },
         build: {
           externalGlobals: [
@@ -57,11 +57,11 @@ export default defineConfig(async ({ command }) => {
             ['psl', cdn.unpkg('psl', 'dist/psl.min.js')],
             [
               'vue-i18n',
-              cdn.unpkg('VueI18n', 'dist/vue-i18n.runtime.global.js')
-            ]
-          ]
-        }
-      })
-    ]
-  };
-});
+              cdn.unpkg('VueI18n', 'dist/vue-i18n.runtime.global.js'),
+            ],
+          ],
+        },
+      }),
+    ],
+  }
+})

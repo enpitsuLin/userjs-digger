@@ -1,3 +1,8 @@
+<script setup lang="ts">
+defineProps<{ modelValue: boolean }>()
+defineEmits<{ (e: 'update:modelValue', p: boolean): void }>()
+</script>
+
 <template>
   <button
     type="button"
@@ -11,10 +16,6 @@
       aria-hidden="true"
       class="pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200"
       :class="modelValue ? 'translate-x-5' : 'translate-x-0'"
-    ></span>
+    />
   </button>
 </template>
-<script setup lang="ts">
-  defineProps<{ modelValue: boolean }>();
-  defineEmits<{ (e: 'update:modelValue', p: boolean): void }>();
-</script>

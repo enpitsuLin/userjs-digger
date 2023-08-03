@@ -1,43 +1,48 @@
 <script setup lang="ts">
-  import psl from 'psl';
-  defineProps<{ show: boolean }>();
-  const emit = defineEmits<{
-    (e: 'update:show', p: boolean): void;
-    (e: 'setting'): void;
-  }>();
+import psl from 'psl'
 
-  const target = ref(null);
+defineProps<{ show: boolean }>()
+const emit = defineEmits<{
+  (e: 'update:show', p: boolean): void
+  (e: 'setting'): void
+}>()
 
-  const container = useInjectContainer();
-  onClickOutside(
-    target,
-    (val) => {
-      if (val) {
-        emit('update:show', false);
-        toggleShowTable(false);
-      }
-    },
-    { ignore: [container] }
-  );
+const target = ref(null)
 
-  const [showTable, toggleShowTable] = useToggle(false);
+const container = useInjectContainer()
 
-  const pagePsl = computed(() => {
-    if (searchSite.value === '') return psl.get(window.location.hostname) ?? '';
-    return searchSite.value;
-  });
+const [showTable, toggleShowTable] = useToggle(false)
 
-  const searchSite = ref('');
-  const [search, toggleSearch] = useToggle(false);
-  const searchInput = ref<HTMLInputElement>();
+const searchSite = ref('')
 
-  const onSearchEnter = () => {
-    toggleSearch(false);
-    execute();
-  };
+const pagePsl = computed(() => {
+  if (searchSite.value === '')
+    return psl.get(window.location.hostname) ?? ''
+  return searchSite.value
+})
 
-  const { data, isLoading, execute } = useDataList(pagePsl);
+const [search, toggleSearch] = useToggle(false)
+const searchInput = ref<HTMLInputElement>()
+
+const { data, isLoading, execute } = useDataList(pagePsl)
+
+onClickOutside(
+  target,
+  (val) => {
+    if (val) {
+      emit('update:show', false)
+      toggleShowTable(false)
+    }
+  },
+  { ignore: [container] },
+)
+
+function onSearchEnter() {
+  toggleSearch(false)
+  execute()
+}
 </script>
+
 <template>
   <div
     ref="target"
@@ -52,7 +57,7 @@
         <div
           class="i-carbon-chevron-left"
           :class="showTable ? '-rotate-90' : 'rotate-90'"
-        ></div>
+        />
       </div>
       <div v-show="!search" class="p-2 text-sm truncate">
         <i18n-t keypath="tip">
@@ -80,25 +85,25 @@
           :placeholder="$t('search-placeholder')"
           @click.stop
           @keypress.enter="onSearchEnter()"
-        />
+        >
       </div>
       <div
         class="ml-auto hover:bg-$ud-bg-hover rounded p-1"
         @click.stop="toggleSearch()"
       >
-        <div class="i-carbon:search"></div>
+        <div class="i-carbon:search" />
       </div>
       <div
         class="hover:bg-$ud-bg-hover rounded p-1"
         @click.stop="$emit('setting')"
       >
-        <div class="i-carbon:settings-adjust"></div>
+        <div class="i-carbon:settings-adjust" />
       </div>
       <div
         class="hover:bg-$ud-bg-hover rounded p-1"
         @click.stop="$emit('update:show', false)"
       >
-        <div class="i-carbon-close"></div>
+        <div class="i-carbon-close" />
       </div>
     </header>
     <section v-if="showTable">
