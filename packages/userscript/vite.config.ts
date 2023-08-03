@@ -42,7 +42,7 @@ export default defineConfig(async ({ command }) => {
           homepage: pkg.homepage,
           version: pkg.version,
           description: pkg.description,
-          website: 'https://enpitsulin.xyz',
+          website: 'https://github.com/enpitsuLin/userjs-digger',
           author: pkg.author,
           include: ['*'],
           grant: ['GM_xmlhttpRequest'],
