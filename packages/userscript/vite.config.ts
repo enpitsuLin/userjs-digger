@@ -15,6 +15,12 @@ export default defineConfig(async ({ command }) => {
   const UnocssPlugin: Plugin[]
     = command === 'serve' ? Unocss() : UnocssBuildPlugin()
   return {
+    build: {
+      lib: {
+        entry: resolve(__dirname, 'src', 'main.ts'),
+        name: pkg.name
+      }
+    },
     plugins: [
       AutoImport({
         imports: [util.unimportPreset, 'vue', '@vueuse/core', 'vue-i18n'],
