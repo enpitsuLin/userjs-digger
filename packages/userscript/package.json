@@ -1,7 +1,7 @@
 {
   "name": "@userjs-digger/userscript",
   "type": "module",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "private": true,
   "description": "Show all userjs available in current site",
   "author": "enpitsulin <enpitsulin@gmail.com>",
