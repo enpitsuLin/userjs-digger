@@ -9,11 +9,12 @@ import monkey, { cdn, util } from 'vite-plugin-monkey'
 import Unocss from 'unocss/vite'
 import { UnocssBuildPlugin } from './plugins/build'
 import pkg from './package.json'
+import { UnocssClientPlugin } from './plugins/unocss'
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ command }) => {
   const UnocssPlugin: Plugin[]
-    = command === 'serve' ? Unocss() : UnocssBuildPlugin()
+    = command === 'serve' ? UnocssClientPlugin() : UnocssBuildPlugin()
   return {
     build: {
       lib: {

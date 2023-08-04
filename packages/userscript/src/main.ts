@@ -6,6 +6,7 @@ import reset from '@unocss/reset/tailwind-compat.css?raw'
 import zh from '@userjs-digger/locales/zh.json'
 import en from '@userjs-digger/locales/en.json'
 import App from './App.vue'
+import { attachUnocss } from './utils/unocss'
 
 const settings = useUserjsDiggerSettings()
 
@@ -34,29 +35,12 @@ function initUserjsDigger(attachShadow = HTMLElement.prototype.attachShadow) {
       constructor() {
         super()
         const app = document.createElement('div')
-
-
         const shadow = attachShadow.call(this, { mode: 'open' })
 
         const resetStyle = document.createElement('style')
         resetStyle.innerHTML = reset
 
-
-        if (import.meta.env.DEV) {
-          const style = document.createElement('link')
-          style.rel = "stylesheet"
-          const url = new URL(import.meta.url)
-          style.href = new URL(`./__uno.css`, `${url.protocol}${url.host}`).href
-
-          shadow.appendChild(style)
-        }
-        else {
-          import('uno.css?raw').then(({ default: css }) => {
-            const style = document.createElement('style')
-            style.innerText = css as string
-            shadow.appendChild(style)
-          })
-        }
+        attachUnocss(shadow)
         shadow.appendChild(resetStyle)
         shadow.appendChild(app)
 
