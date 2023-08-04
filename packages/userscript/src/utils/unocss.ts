@@ -1,8 +1,9 @@
-import unocss from 'uno.css?inline'
 
 export function attachUnocss(root: ShadowRoot) {
-  if (import.meta.env.DEV) { 
-    root.appendChild(unocss as any)
+  if (import.meta.env.DEV) {
+    import('uno.css?raw').then(({ default: unocss }) => {
+      root.appendChild(unocss as any)
+    })
   }
   else {
     import('uno.css?raw').then(({ default: css }) => {
