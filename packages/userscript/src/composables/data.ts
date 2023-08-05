@@ -1,4 +1,4 @@
-import { getTypedFilter } from '@userjs-digger/utils'
+import { getTypedFilter } from '../utils/type'
 import type { AfterFetchContext } from '@vueuse/core'
 import type { MaybeRefOrGetter } from 'vue'
 import type { GreasyforkScript } from '../types'
