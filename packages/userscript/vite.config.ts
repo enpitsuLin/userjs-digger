@@ -6,7 +6,6 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Component from 'unplugin-vue-components/vite'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import monkey, { cdn, util } from 'vite-plugin-monkey'
-import Unocss from 'unocss/vite'
 import { UnocssBuildPlugin } from './plugins/build'
 import pkg from './package.json'
 import { UnocssClientPlugin } from './plugins/unocss'
@@ -19,8 +18,8 @@ export default defineConfig(async ({ command }) => {
     build: {
       lib: {
         entry: resolve(__dirname, 'src', 'main.ts'),
-        name: pkg.name
-      }
+        name: pkg.name,
+      },
     },
     plugins: [
       AutoImport({

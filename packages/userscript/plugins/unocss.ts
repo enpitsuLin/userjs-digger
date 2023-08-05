@@ -11,13 +11,11 @@ export function UnocssClientPlugin(): Plugin[] {
   return [
     ...rest,
     {
-      name: "redirect:client",
-      enforce: "pre",
+      name: 'redirect:client',
+      enforce: 'pre',
       async resolveId(source, importer, options) {
-
-        if (source === '/@ud/client') { 
+        if (source === '/@ud/client')
           return 'plugins/client.ts'
-        }
       },
     },
     globalPlugin,
@@ -31,11 +29,11 @@ export function UnocssClientPlugin(): Plugin[] {
           const l3 = outcode.split('\n')[2] as string
           const css = l3.substring('const __vite__css = "'.length, l3.length - 1)
           const code = [
-            `import {updateStyle,removeStyle} from '/@ud/client'`,
+            'import {updateStyle,removeStyle} from \'/@ud/client\'',
             `const __vite__id  = ${JSON.stringify(id)}`,
             `const __vite__css = "${css}"`,
-            `import.meta.hot.accept()`,
-            `export default updateStyle(__vite__id,__vite__css)`,
+            'import.meta.hot.accept()',
+            'export default updateStyle(__vite__id,__vite__css)',
             `import.meta.hot.prune(() => removeStyle(__vite__id))
 if (import.meta.hot) {
 try {
@@ -49,7 +47,7 @@ try {
   console.warn('[unocss-hmr]', e)
 }
 if (!import.meta.url.includes('?'))
-  await new Promise(resolve => setTimeout(resolve, 100))}`
+  await new Promise(resolve => setTimeout(resolve, 100))}`,
           ].join('\n')
 
           return { code }

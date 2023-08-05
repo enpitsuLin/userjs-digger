@@ -1,4 +1,3 @@
-
 const sheetsMap = new Map<string, HTMLStyleElement>()
 
 export function updateStyle(id: string, content: string): HTMLStyleElement {
@@ -8,8 +7,8 @@ export function updateStyle(id: string, content: string): HTMLStyleElement {
     style.setAttribute('type', 'text/css')
     style.setAttribute('data-vite-dev-id', id)
     style.textContent = content
-
-  } else {
+  }
+  else {
     style.textContent = content
   }
   sheetsMap.set(id, style)
