@@ -46,7 +46,7 @@ export function useGreasyfork(
 }
 
 interface UseDataListReturn {
-  data: Ref<GreasyforkScript[]>
+  data: Ref<{ data: GreasyforkScript; source: string }[]>
   isLoading: Ref<boolean>
   execute: () => void
 }
@@ -75,16 +75,18 @@ export function useDataList(host: MaybeRefOrGetter<string>): UseDataListReturn {
   )
 
   const data = computed(() => {
+    const greasyforkRes = greasyfork.value?.map(i => ({ data: i, source: 'greasyfork' })) ?? []
+    const sleazyforkRes = sleazyfork.value?.map(i => ({ data: i, source: 'sleazyfork' })) ?? []
     return (
-      greasyfork.value?.concat(
-        settings.value.nsfw ? sleazyfork.value ?? [] : [],
-      ) ?? []
-    ).filter(item =>
+      greasyforkRes.concat(
+        settings.value.nsfw ? sleazyforkRes : [],
+      )
+    ).filter(({ data }) =>
       settings.value.filter.every((keywords) => {
         const filter = getTypedFilter(keywords)
         if (filter.type === 'title')
-          return !filter.regexp.test(item.name)
-        else return item.users.every(user => !filter.regexp.test(user.name))
+          return !filter.regexp.test(data.name)
+        else return data.users.every(user => !filter.regexp.test(user.name))
       }),
     )
   })

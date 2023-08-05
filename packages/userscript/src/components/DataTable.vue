@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { GreasyforkScript } from '../types';
 import { formatTimeAgoWithI18n } from '../utils/date'
-import type { GreasyforkScript } from '../composables/data'
 
-const props = defineProps<{ data: GreasyforkScript[]; loading: boolean }>()
+const props = defineProps<{ data: { data: GreasyforkScript; source: string }[]; loading: boolean }>()
 const expanded = ref<boolean[]>([])
 
 watchArray(
@@ -25,12 +25,12 @@ const sortedData = useSorted(
   (a, b) => {
     if (sort.updated !== '') {
       if (sort.updated === 'asc')
-        return +new Date(a.code_updated_at) - +new Date(b.code_updated_at)
-      return +new Date(b.code_updated_at) - +new Date(a.code_updated_at)
+        return +new Date(a.data.code_updated_at) - +new Date(b.data.code_updated_at)
+      return +new Date(b.data.code_updated_at) - +new Date(a.data.code_updated_at)
     }
     if (sort.daily === 'asc')
-      return a.daily_installs - b.daily_installs
-    return b.daily_installs - a.daily_installs
+      return a.data.daily_installs - b.data.daily_installs
+    return b.data.daily_installs - a.data.daily_installs
   },
 )
 
@@ -59,26 +59,18 @@ const { t } = useI18n()
 
 <template>
   <div class="inline-block min-w-full align-middle">
-    <div
-      class="relative overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5"
-    >
+    <div class="relative overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
       <table class="min-w-full divide-y divide-$ud-border-secondary">
         <thead class="bg-$ud-bg-secondary select-none">
           <tr style="table-layout: fixed" class="table">
             <th scope="col" class="w-8 relative p-2">
               <span class="sr-only">{{ t('table.toggle-expand') }}</span>
             </th>
-            <th
-              scope="col"
-              class="w-60 py-2 pl-4 pr-3 text-left text-xs font-semibold"
-            >
+            <th scope="col" class="w-60 py-2 pl-4 pr-3 text-left text-xs font-semibold">
               {{ t('table.title') }}
             </th>
-            <th
-              scope="col"
-              class="w-20 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
-              @click="onSortClick('daily')"
-            >
+            <th scope="col" class="w-20 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
+              @click="onSortClick('daily')">
               <div class="inline-flex items-center">
                 <div>
                   {{ t('table.daily') }}
@@ -88,11 +80,8 @@ const { t } = useI18n()
                 </div>
               </div>
             </th>
-            <th
-              scope="col"
-              class="w-22 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
-              @click="onSortClick('updated')"
-            >
+            <th scope="col" class="w-22 px-2 py-2 text-left text-xs font-semibold cursor-pointer"
+              @click="onSortClick('updated')">
               <div class="inline-flex items-center">
                 <div>
                   {{ t('table.update') }}
@@ -107,32 +96,16 @@ const { t } = useI18n()
             </th>
           </tr>
         </thead>
-        <tbody
-          v-bind="containerProps"
-          class="h-60 overflow-y-overlay block divide-y divide-$ud-border w-full bg-$ud-bg"
-        >
+        <tbody v-bind="containerProps"
+          class="h-60 overflow-y-overlay block divide-y divide-$ud-border w-full bg-$ud-bg">
           <div v-bind="wrapperProps">
             <template v-if="loading">
               <div class="flex items-center justify-center py-10">
-                <svg
-                  class="animate-spin w-10 h-10 text-indigo-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  />
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
+                <svg class="animate-spin w-10 h-10 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                  viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               </div>
             </template>
@@ -141,51 +114,33 @@ const { t } = useI18n()
                 {{ t('table.empty') }}
               </div>
             </template>
-            <template v-for="item of list" v-else :key="item.index">
+            <template v-for="({ data: { data, source }, index }) of list" v-else :key="index">
               <tr class="table w-full">
-                <td
-                  class="w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer"
-                  @click="toggleExpand(item.index)"
-                >
-                  <div
-                    class="i-carbon-chevron-right"
-                    :class="expanded[item.index] && 'rotate-90'"
-                  />
+                <td class="w-8 relative truncate p-2 text-right text-xs font-medium cursor-pointer"
+                  @click="toggleExpand(index)">
+                  <div class="i-carbon-chevron-right" :class="expanded[index] && 'rotate-90'" />
                 </td>
-                <td
-                  :title="item.data.name"
-                  class="w-60 break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60"
-                >
-                  <a :href="item.data.url" target="_blank">
-                    {{ item.data.name }}
+                <td :title="data.name" class="w-60 break-all truncate py-2 pl-4 pr-3 text-xs font-medium max-w-60">
+                  <a :href="data.url" target="_blank">
+                    <span v-if="source === 'sleazyfork'" title="from sleazyfork">🔞</span> {{ data.name }}
                   </a>
                 </td>
-                <td
-                  class="w-20 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
-                >
-                  {{ item.data.daily_installs }}
+                <td class="w-20 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary">
+                  {{ data.daily_installs }}
                 </td>
-                <td
-                  class="w-22 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary"
-                >
+                <td class="w-22 break-all truncate px-3 py-2 text-xs text-$ud-text-secondary">
                   {{
-                    formatTimeAgoWithI18n(new Date(item.data.code_updated_at))
+                    formatTimeAgoWithI18n(new Date(data.code_updated_at))
                   }}
                 </td>
-                <td
-                  class="relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium"
-                >
-                  <a
-                    :href="item.data.code_url"
-                    target="_blank"
-                    class="text-indigo-600 hover:text-indigo-900"
-                  >
+                <td class="relative truncate py-2 pl-3 pr-4 text-right text-xs font-medium">
+                  <a :href="data.code_url" target="_blank" class="text-indigo-600 hover:text-indigo-900">
                     {{ t('table.install') }}
-                    <span class="sr-only">, {{ item.data.name }}</span>
+                    <span class="sr-only">, {{ data.name }}</span>
                   </a>
                 </td>
               </tr>
-              <tr v-if="expanded[item.index]" class="table w-full">
+              <tr v-if="expanded[index]" class="table w-full">
                 <td colspan="5" class="py-2">
                   <div class="mx-2">
                     <dl class="text-xs grid grid-cols-6 gap-y-2">
@@ -193,31 +148,26 @@ const { t } = useI18n()
                         {{ t('table.version') }}
                       </dt>
                       <dd class="text-$ud-text">
-                        {{ item.data.version }}
+                        {{ data.version }}
                       </dd>
                       <dt class="font-semibold">
                         {{ t('table.score') }}
                       </dt>
                       <dd class="text-$ud-text">
-                        {{ item.data.fan_score }}
+                        {{ data.fan_score }}
                       </dd>
                       <dt class="font-semibold">
                         {{ t('table.total-installs') }}
                       </dt>
                       <dd class="text-$ud-text">
-                        {{ item.data.total_installs.toLocaleString() }}
+                        {{ data.total_installs.toLocaleString() }}
                       </dd>
                       <dt class="font-semibold">
                         {{ t('table.authors') }}
                       </dt>
                       <dd class="col-span-5 text-$ud-text">
-                        <a
-                          v-for="user in item.data.users"
-                          :key="user.id"
-                          :href="user.url"
-                          target="_blank"
-                          class="underline underline-$ud-border"
-                        >
+                        <a v-for="user in data.users" :key="user.id" :href="user.url" target="_blank"
+                          class="underline underline-$ud-border">
                           {{ user.name }}
                         </a>
                       </dd>
@@ -225,7 +175,7 @@ const { t } = useI18n()
                         {{ t('table.description') }}
                       </dt>
                       <dd class="col-span-5 text-$ud-text">
-                        {{ item.data.description }}
+                        {{ data.description }}
                       </dd>
                     </dl>
                   </div>
