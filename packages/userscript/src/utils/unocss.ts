@@ -12,6 +12,3 @@ export function attachUnocss(root: ShadowRoot) {
     })
   }
 }
-
-if (import.meta.hot)
-  import.meta.hot.accept(console.log)

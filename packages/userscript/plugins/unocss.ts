@@ -13,7 +13,7 @@ export function UnocssClientPlugin(): Plugin[] {
     {
       name: 'redirect:client',
       enforce: 'pre',
-      async resolveId(source, importer, options) {
+      async resolveId(source) {
         if (source === '/@ud/client')
           return 'plugins/client.ts'
       },

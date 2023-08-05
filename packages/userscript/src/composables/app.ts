@@ -1,3 +1,6 @@
+import { SETTING_KEY } from '../constants'
+import type { UserjsDiggerSettings } from '../types'
+
 export const useInjectContainer = () => inject<HTMLDivElement>('container')!
 
 const defaultSettings: UserjsDiggerSettings = {
@@ -10,7 +13,7 @@ const defaultSettings: UserjsDiggerSettings = {
 const toString = Object.prototype.toString
 
 export const useUserjsDiggerSettings = createGlobalState(() => {
-  const settings = useGMStorage('ud_settings', defaultSettings)
+  const settings = useGMStorage(SETTING_KEY, defaultSettings)
 
   Object.entries(settings.value).forEach(([key, value]) => {
     if (

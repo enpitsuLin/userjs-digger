@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Position } from '@vueuse/core'
+import { FAB_POSITION_KEY } from '../constants'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', p: boolean): void }>()
@@ -10,7 +11,7 @@ const { width: fabWidth, height: fabHeight } = useElementBounding(fab)
 
 const { width, height } = useWindowSize()
 
-const position = useGMStorage<Position>('ud_position', {
+const position = useGMStorage<Position>(FAB_POSITION_KEY, {
   x: width.value - 64,
   y: height.value - 64,
 })

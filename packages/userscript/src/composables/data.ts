@@ -1,39 +1,7 @@
-import type { AfterFetchContext } from '@vueuse/core'
 import { getTypedFilter } from '@userjs-digger/utils'
+import type { AfterFetchContext } from '@vueuse/core'
 import type { MaybeRefOrGetter } from 'vue'
-
-export interface GreasyforkScriptUser {
-  id: number
-  name: string
-  url: string
-}
-
-export interface GreasyforkScript {
-  bad_ratings: number
-  code_updated_at: string
-  code_url: string
-  contribution_amount: null | number
-  contribution_url: null | string
-  created_at: string
-  daily_installs: number
-  deleted: false
-  description: string
-  fan_score: string
-  good_ratings: number
-  id: number
-  license: null | string
-  locale: string
-  name: string
-  namespace: string
-  ok_ratings: number
-  support_url: null | string
-  total_installs: number
-  url: string
-  users: GreasyforkScriptUser[]
-  version: string
-}
-
-const _cacheData = new Map<string, GreasyforkScript[]>()
+import type { GreasyforkScript } from '../types'
 
 export function useGreasyfork(
   host: MaybeRefOrGetter<string>,
@@ -77,7 +45,13 @@ export function useGreasyfork(
   }).json<GreasyforkScript[]>()
 }
 
-export function useDataList(host: MaybeRefOrGetter<string>) {
+interface UseDataListReturn {
+  data: Ref<GreasyforkScript[]>
+  isLoading: Ref<boolean>
+  execute: () => void
+}
+
+export function useDataList(host: MaybeRefOrGetter<string>): UseDataListReturn {
   const settings = useUserjsDiggerSettings()
   const {
     data: greasyfork,
