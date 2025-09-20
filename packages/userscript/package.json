@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@userjs-digger/locales": "workspace:*",
-    "@userjs-digger/utils": "workspace:*",
     "@vueuse/core": "10.3.0",
     "psl": "^1.9.0",
     "punycode": "^2.3.0",
